@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          String
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  encounters    Encounter[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Clinic {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  patients  Patient[]
+
+  @@index([code])
+}
+
+model Patient {
+  id            String   @id @default(uuid())
+  patientCode   String   @unique
+  fullName      String
+  age           Int
+  dateOfBirth   DateTime?
+  gender        String
+  phone         String
+  email         String?
+  address       String?
+  emergencyContact String?
+  consentGiven  Boolean  @default(false)
+  consentAt     DateTime?
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  encounters         Encounter[]
+  documents          MedicalDocument[]
+  prakritiAssessments PrakritiAssessment[]
+  followUps          FollowUp[]
+
+  @@index([patientCode])
+  @@index([fullName])
+  @@index([phone])
+}
+
+model Encounter {
+  id              String          @id @default(uuid())
+  patientId       String
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicianId     String?
+  clinician       User?           @relation(fields: [clinicianId], references: [id])
+  visitType       String          @default("INITIAL")
+  chiefComplaint  String?
+  duration        String?
+  severity        Int?
+  status          String          @default("IN_PROGRESS")
+  generatedSummary String?
+  summaryApproved Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  biomedicalAssessment BiomedicalAssessment?
+  ayurvedicAssessment  AyurvedicAssessment?
+  vitals               Vital?
+  interviewResponses   InterviewResponse[]
+  redFlags             RedFlag[]
+  documents            MedicalDocument[]
+  prakritiAssessment   PrakritiAssessment?
+  followUps            FollowUp[]
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BiomedicalAssessment {
+  id                 String  @id @default(uuid())
+  encounterId        String  @unique
+  encounter          Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  symptoms           String?
+  pastMedicalHistory String?
+  allergies          String?
+  medications        String?
+  familyHistory      String?
+  examinationFindings String?
+}
+
+model AyurvedicAssessment {
+  id                 String  @id @default(uuid())
+  encounterId        String  @unique
+  encounter          Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  prakriti           String?
+  vikriti            String?
+  doshaAssessment    String?
+  agni               String?
+  ahara              String?
+  nidra              String?
+  bowelPattern       String?
+  additionalNotes    String?
+}
+
+model Vital {
+  id           String   @id @default(uuid())
+  encounterId  String   @unique
+  encounter    Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  systolicBP   Float?
+  diastolicBP  Float?
+  pulse        Float?
+  temperature  Float?
+  weight       Float?
+  height       Float?
+  spo2         Float?
+  recordedAt   DateTime @default(now())
+}
+
+model InterviewResponse {
+  id           String   @id @default(uuid())
+  encounterId  String
+  encounter    Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  questionKey  String
+  questionText String
+  response     String
+  language     String   @default("en")
+  source       String   @default("TEXT")
+  createdAt    DateTime @default(now())
+
+  @@index([encounterId])
+}
+
+model RedFlag {
+  id            String        @id @default(uuid())
+  encounterId   String
+  encounter     Encounter     @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  level         String
+  code          String
+  reason        String
+  sourceField   String?
+  sourceValue   String?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([encounterId])
+  @@index([level])
+}
+
+model MedicalDocument {
+  id                    String   @id @default(uuid())
+  patientId             String
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounterId           String?
+  encounter             Encounter? @relation(fields: [encounterId], references: [id])
+  filename              String
+  mimeType              String
+  storagePath           String
+  extractionStatus      String   @default("PENDING")
+  extractedText         String?
+  extractedStructuredData String?
+  uploadedAt            DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model PrakritiAssessment {
+  id                String   @id @default(uuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounterId       String?  @unique
+  encounter         Encounter? @relation(fields: [encounterId], references: [id])
+  responses         String
+  vataScore         Float
+  pittaScore        Float
+  kaphaScore        Float
+  calculatedResult  String
+  clinicianResult   String?
+  createdAt         DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model FollowUp {
+  id              String        @id @default(uuid())
+  patientId       String
+  patient         Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounterId     String?
+  encounter       Encounter?    @relation(fields: [encounterId], references: [id])
+  scheduledAt     DateTime
+  status          String        @default("SCHEDULED")
+  severity        Int?
+  symptoms        String?
+  progressNotes   String?
+  updatedTreatment String?
+  nextReviewAt    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([patientId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
