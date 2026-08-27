@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ayurcare-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma generate && npx prisma db push --force-reset && npm run db:seed
+    startCommand: node dist/index.js
+    envVars:
+      - key: DATABASE_URL
+        value: "file:./prod.db"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_PROVIDER
+        value: "mock"
+      - key: NODE_ENV
+        value: "production"
+      - key: APP_URL
+        sync: false

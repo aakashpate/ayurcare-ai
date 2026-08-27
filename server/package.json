@@ -2,19 +2,21 @@
   "name": "ayurcare-server",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:seed": "tsx src/seed.ts",
+    "db:setup": "npx prisma generate && npx prisma db push && npm run db:seed",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/client": "^5.9.0",
-    "@types/better-sqlite3": "^9.6.0",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
