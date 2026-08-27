@@ -1,4 +1,7 @@
 import axios from 'axios';
+import mockAdapter from './mockAdapter';
+
+const isMockMode = !import.meta.env.VITE_API_URL;
 
 const baseURL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -8,7 +11,8 @@ const api = axios.create({
   baseURL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  adapter: isMockMode ? mockAdapter : undefined,
 });
 
 api.interceptors.request.use((config) => {
@@ -24,7 +28,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('mock-user');
+      window.location.href = '/#/login';
     }
     return Promise.reject(error);
   }
