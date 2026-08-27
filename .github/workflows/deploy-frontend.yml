@@ -32,8 +32,6 @@ jobs:
       - name: Build
         working-directory: client
         run: npm run build
-        env:
-          VITE_API_URL: https://ayurcare-api.onrender.com
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
