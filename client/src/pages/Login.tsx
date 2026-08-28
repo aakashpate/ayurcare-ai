@@ -17,7 +17,7 @@ export default function Login() {
     
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/dashboard');
       toast.success('Login successful!');
     } catch (error) {
       toast.error(t('auth.invalidCredentials'));
@@ -33,7 +33,7 @@ export default function Login() {
     
     try {
       await login(demoEmail, 'demo123');
-      navigate('/');
+      navigate('/dashboard');
       toast.success('Demo login successful!');
     } catch (error) {
       toast.error(t('auth.invalidCredentials'));
