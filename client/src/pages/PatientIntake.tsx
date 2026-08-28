@@ -219,7 +219,9 @@ export default function PatientIntake() {
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
-          <div className="text-3xl mb-2">🇬🇧</div>
+          <div className="w-12 h-12 mx-auto mb-2 bg-blue-100 rounded-full flex items-center justify-center">
+            <Globe className="w-6 h-6 text-blue-600" />
+          </div>
           <div className="font-medium text-gray-900">English</div>
         </button>
         <button
@@ -230,7 +232,9 @@ export default function PatientIntake() {
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
-          <div className="text-3xl mb-2">🇮🇳</div>
+          <div className="w-12 h-12 mx-auto mb-2 bg-orange-100 rounded-full flex items-center justify-center">
+            <span className="text-orange-600 font-bold text-lg">hi</span>
+          </div>
           <div className="font-medium text-gray-900">हिन्दी</div>
         </button>
       </div>
