@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -78,6 +78,7 @@ model Encounter {
   chiefComplaint  String?
   duration        String?
   severity        Int?
+  language        String          @default("en")
   status          String          @default("IN_PROGRESS")
   generatedSummary String?
   summaryApproved Boolean         @default(false)

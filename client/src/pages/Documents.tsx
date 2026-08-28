@@ -17,6 +17,7 @@ interface ExtractionResult {
   text: string;
   structuredData: any;
   confidence: number;
+  isMock?: boolean;
 }
 
 export default function Documents() {
@@ -74,15 +75,55 @@ export default function Documents() {
     navigate(`/review/${encounterId}`);
   };
 
+  const handleLoadDemoDocument = async () => {
+    setUploading(true);
+    try {
+      const response = await api.post('/documents/upload', {
+        extraction: {
+          text: '[DEMO] Previous prescription from Dr. Kumar:\n\nDiagnosis: Chronic tension headache\nMedications:\n1. Tab. Paracetamol 500mg - 1 tablet twice daily for 5 days\n2. Tab. Ibuprofen 400mg - 1 tablet after food for 3 days\n\nAdvice: Follow up after 1 week',
+          structuredData: {
+            doctor: 'Dr. Kumar',
+            diagnosis: 'Chronic tension headache',
+            medications: [
+              { name: 'Paracetamol', dosage: '500mg', frequency: 'Twice daily', duration: '5 days' },
+              { name: 'Ibuprofen', dosage: '400mg', frequency: 'After food', duration: '3 days' }
+            ]
+          },
+          confidence: 0.92,
+          isMock: true
+        }
+      });
+
+      setExtraction(response.data.extraction);
+      toast.success('Demo document loaded!');
+    } catch (error) {
+      toast.error('Failed to load demo document');
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-serif font-bold text-gray-900">
-          {t('documents.title')}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Upload previous prescriptions, lab reports, or medical documents
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-gray-900">
+            {t('documents.title')}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Upload previous prescriptions, lab reports, or medical documents
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleLoadDemoDocument}
+          disabled={uploading}
+          className="btn-secondary flex items-center text-sm"
+        >
+          <FileText className="w-4 h-4 mr-1" />
+          Load Demo Document
+        </button>
       </div>
 
       {/* Upload Area */}
@@ -154,7 +195,12 @@ export default function Documents() {
             <h2 className="text-lg font-serif font-semibold text-gray-900">
               {t('documents.extraction')}
             </h2>
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
+              {extraction.isMock && (
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  DEMO OCR
+                </span>
+              )}
               <span className="text-sm text-gray-500 mr-2">
                 {t('documents.confidence')}:
               </span>
@@ -195,14 +241,22 @@ export default function Documents() {
           )}
 
           {/* Confidence Warning */}
-          {extraction.confidence < 0.8 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          {(extraction.confidence < 0.8 || extraction.isMock) && (
+            <div className={`border rounded-lg p-4 mb-4 ${
+              extraction.isMock ? 'bg-amber-50 border-amber-200' : 'bg-yellow-50 border-yellow-200'
+            }`}>
               <div className="flex">
-                <AlertCircle className="h-5 w-5 text-yellow-400" />
+                <AlertCircle className={`h-5 w-5 ${extraction.isMock ? 'text-amber-400' : 'text-yellow-400'}`} />
                 <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
-                    The extraction confidence is below 80%. Please review the extracted information carefully.
-                  </p>
+                  {extraction.isMock ? (
+                    <p className="text-sm text-amber-700">
+                      This is a demo OCR extraction with simulated data. In production, actual text would be extracted from the document.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-yellow-700">
+                      The extraction confidence is below 80%. Please review the extracted information carefully.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -35,7 +35,8 @@ router.get('/:encounterId/pdf', async (req: AuthRequest, res: Response) => {
     doc.fontSize(12).text('Clinical Documentation', { align: 'center' });
     doc.moveDown();
     
-    doc.fontSize(10).text('AI-generated information — physician review required', { align: 'center', color: 'red' });
+    doc.fontSize(10).fillColor('red').text('AI-generated information — physician review required', { align: 'center' });
+    doc.fillColor('black');
     doc.moveDown();
 
     doc.fontSize(14).text('Patient Information');

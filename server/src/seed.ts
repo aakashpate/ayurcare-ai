@@ -6,8 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  const clinic = await prisma.clinic.create({
-    data: {
+  const clinic = await prisma.clinic.upsert({
+    where: { code: 'DEMO-001' },
+    update: {},
+    create: {
       name: 'AyurCare Demo Clinic',
       code: 'DEMO-001',
       address: '123 Wellness Street, New Delhi, India',
@@ -19,8 +21,10 @@ async function main() {
   const doctorPassword = await bcrypt.hash('demo123', 10);
   const patientPassword = await bcrypt.hash('demo123', 10);
 
-  const admin = await prisma.user.create({
-    data: {
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@ayurcare.ai' },
+    update: {},
+    create: {
       name: 'Admin User',
       email: 'admin@ayurcare.ai',
       passwordHash: adminPassword,
@@ -29,8 +33,10 @@ async function main() {
     }
   });
 
-  const doctor = await prisma.user.create({
-    data: {
+  const doctor = await prisma.user.upsert({
+    where: { email: 'doctor@ayurcare.ai' },
+    update: {},
+    create: {
       name: 'Dr. Priya Sharma',
       email: 'doctor@ayurcare.ai',
       passwordHash: doctorPassword,
@@ -39,8 +45,10 @@ async function main() {
     }
   });
 
-  const patientUser = await prisma.user.create({
-    data: {
+  const patientUser = await prisma.user.upsert({
+    where: { email: 'patient@ayurcare.ai' },
+    update: {},
+    create: {
       name: 'Rohan Sharma',
       email: 'patient@ayurcare.ai',
       passwordHash: patientPassword,
@@ -51,8 +59,10 @@ async function main() {
 
   const students = [];
   for (let i = 1; i <= 2; i++) {
-    const student = await prisma.user.create({
-      data: {
+    const student = await prisma.user.upsert({
+      where: { email: `student${i}@ayurcare.ai` },
+      update: {},
+      create: {
         name: `Student ${i}`,
         email: `student${i}@ayurcare.ai`,
         passwordHash: await bcrypt.hash('student123', 10),
@@ -81,8 +91,10 @@ async function main() {
     const year = new Date().getFullYear();
     const patientCode = `AYU-${year}-${(i + 1).toString().padStart(4, '0')}`;
     
-    const patient = await prisma.patient.create({
-      data: {
+    const patient = await prisma.patient.upsert({
+      where: { patientCode },
+      update: {},
+      create: {
         ...demoPatients[i],
         patientCode,
         consentGiven: true,
@@ -108,6 +120,16 @@ async function main() {
 
   const encounters = [];
   for (let i = 0; i < Math.min(patients.length, chiefComplaints.length); i++) {
+    const existingEncounters = await prisma.encounter.findMany({
+      where: { patientId: patients[i].id },
+      take: 1
+    });
+    
+    if (existingEncounters.length > 0) {
+      encounters.push(existingEncounters[0]);
+      continue;
+    }
+    
     const isFollowUp = i % 3 === 0;
     
     const encounter = await prisma.encounter.create({
@@ -118,6 +140,7 @@ async function main() {
         chiefComplaint: chiefComplaints[i],
         duration: ['1-3 days', '4-7 days', '1-2 weeks', 'More than 2 weeks', 'Chronic'][i % 5],
         severity: Math.floor(Math.random() * 5) + 5,
+        language: 'en',
         status: i < 3 ? 'APPROVED' : i < 6 ? 'COMPLETED' : 'IN_PROGRESS'
       }
     });

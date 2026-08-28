@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { t } from '../i18n';
+import { t, setLanguage } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -79,6 +79,8 @@ export default function NewCase() {
 
   const handleLoadDemo = async () => {
     try {
+      setLanguage('hi');
+      
       const response = await api.post('/patients', {
         fullName: 'Rohan Sharma',
         age: 45,
@@ -95,13 +97,14 @@ export default function NewCase() {
       const encounterResponse = await api.post('/encounters', {
         patientId: newPatientId,
         visitType: 'INITIAL',
-        chiefComplaint: 'Severe headache with nausea for 3 days',
-        duration: '3 days',
-        severity: 8
+        chiefComplaint: 'पेट में दर्द और सूजन',
+        duration: '3 दिन',
+        severity: 7,
+        language: 'hi'
       });
       
       setEncounterId(encounterResponse.data.encounter.id);
-      toast.success('Demo patient loaded!');
+      toast.success('डेमो रोगी लोड हो गया! (Demo patient loaded!)');
       setCurrentStep(2);
     } catch (error) {
       toast.error('Failed to load demo patient');

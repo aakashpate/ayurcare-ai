@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { isMockMode } from '../services/api';
 import { 
   LayoutDashboard, 
   UserPlus, 
@@ -58,12 +59,21 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               <span className="ml-2 text-lg font-serif font-bold text-gray-900">{t('common.appName')}</span>
             </Link>
-            <button 
-              className="lg:hidden p-1 rounded-md hover:bg-gray-100"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                isMockMode 
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                  : 'bg-green-100 text-green-800 border border-green-200'
+              }`}>
+                {isMockMode ? 'DEMO MODE' : 'LIVE BACKEND'}
+              </span>
+              <button 
+                className="lg:hidden p-1 rounded-md hover:bg-gray-100"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Navigation */}
@@ -124,7 +134,13 @@ export default function Layout({ children }: LayoutProps) {
               <Menu className="w-6 h-6" />
             </button>
             <span className="text-lg font-serif font-bold">{t('common.appName')}</span>
-            <div className="w-10" />
+            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+              isMockMode 
+                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                : 'bg-green-100 text-green-800 border border-green-200'
+            }`}>
+              {isMockMode ? 'DEMO' : 'LIVE'}
+            </span>
           </div>
         </div>
 

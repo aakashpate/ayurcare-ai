@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { t } from '../i18n';
+import { t, getLanguage } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -77,7 +77,9 @@ export default function Interview() {
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = false;
     recognitionRef.current.interimResults = true;
-    recognitionRef.current.lang = 'en-US';
+    
+    const lang = getLanguage();
+    recognitionRef.current.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
 
     recognitionRef.current.onstart = () => {
       setIsListening(true);
@@ -135,12 +137,15 @@ export default function Interview() {
 
     setSubmitting(true);
     try {
+      const lang = getLanguage();
+      const source = isListening || transcript ? 'VOICE' : 'TEXT';
+      
       await api.post(`/encounters/${encounterId}/responses`, {
         questionKey: currentQuestion.key,
         questionText: currentQuestion.text,
         response: response.trim(),
-        language: 'en',
-        source: 'TEXT'
+        language: lang,
+        source: source
       });
 
       setResponse('');

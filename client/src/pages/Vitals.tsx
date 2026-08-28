@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { t } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { ArrowRight, ArrowLeft, Save } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Save, Zap } from 'lucide-react';
 
 interface VitalsData {
   systolicBP?: number;
@@ -21,7 +21,7 @@ export default function Vitals() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
-  const { register, handleSubmit } = useForm<VitalsData>();
+  const { register, handleSubmit, setValue } = useForm<VitalsData>();
 
   const onSubmit = async (data: VitalsData) => {
     setSaving(true);
@@ -46,15 +46,36 @@ export default function Vitals() {
     }
   };
 
+  const handleLoadDemoVitals = () => {
+    setValue('systolicBP', 130);
+    setValue('diastolicBP', 85);
+    setValue('pulse', 78);
+    setValue('temperature', 37.0);
+    setValue('weight', 72);
+    setValue('height', 170);
+    setValue('spo2', 97);
+    toast.success('Demo vitals loaded!');
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-serif font-bold text-gray-900">
-          {t('vitals.title')}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Enter the patient's vital signs and measurements
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-gray-900">
+            {t('vitals.title')}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Enter the patient's vital signs and measurements
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleLoadDemoVitals}
+          className="btn-secondary flex items-center text-sm"
+        >
+          <Zap className="w-4 h-4 mr-1" />
+          Load Demo Vitals
+        </button>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

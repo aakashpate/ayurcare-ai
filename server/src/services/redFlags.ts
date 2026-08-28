@@ -1,5 +1,3 @@
-import { RedFlagLevel } from '@prisma/client';
-
 interface RedFlagInput {
   severity?: number | null;
   chiefComplaint?: string | null;
@@ -20,7 +18,7 @@ interface RedFlagInput {
 }
 
 interface RedFlag {
-  level: RedFlagLevel;
+  level: string;
   code: string;
   reason: string;
   sourceField?: string;

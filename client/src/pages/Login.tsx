@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { t } from '../i18n';
 import toast from 'react-hot-toast';
@@ -138,6 +138,12 @@ export default function Login() {
 
           <div className="mt-4 text-center text-xs text-gray-500">
             <p>Demo password: demo123</p>
+          </div>
+
+          <div className="mt-4 text-center">
+            <Link to="/" className="text-sm text-primary-600 hover:text-primary-700">
+              ← Back to Home
+            </Link>
           </div>
         </div>
       </div>

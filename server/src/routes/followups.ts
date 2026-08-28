@@ -94,7 +94,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         action: 'CREATE_FOLLOW_UP',
         entityType: 'FollowUp',
         entityId: followUp.id,
-        metadata: { patientId: data.patientId, scheduledAt: data.scheduledAt }
+        metadata: JSON.stringify({ patientId: data.patientId, scheduledAt: data.scheduledAt })
       }
     });
 
@@ -132,7 +132,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         action: 'UPDATE_FOLLOW_UP',
         entityType: 'FollowUp',
         entityId: followUp.id,
-        metadata: { changes: Object.keys(data) }
+        metadata: JSON.stringify({ changes: Object.keys(data) })
       }
     });
 

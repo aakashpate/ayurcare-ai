@@ -19,26 +19,148 @@ function delay(ms = 150) {
 const DEMO_PATIENTS: any[] = [];
 const DEMO_ENCOUNTERS: Record<string, any> = {};
 
-const INTERVIEW_QUESTIONS = [
-  { key: 'chiefComplaint', text: 'What is your main health concern today?', type: 'text', required: true, category: 'Chief Complaint' },
-  { key: 'duration', text: 'How long have you been experiencing this?', type: 'text', required: true, category: 'Chief Complaint' },
-  { key: 'severity', text: 'On a scale of 1-10, how severe is your discomfort?', type: 'number', required: true, category: 'Chief Complaint' },
-  { key: 'onset', text: 'When did this problem start? Was it sudden or gradual?', type: 'text', required: false, category: 'History' },
-  { key: 'location', text: 'Where exactly do you feel the discomfort?', type: 'text', required: false, category: 'History' },
-  { key: 'quality', text: 'How would you describe the nature of your discomfort?', type: 'select', options: ['Sharp', 'Dull', 'Aching', 'Burning', 'Throbbing', 'Cramping'], required: false, category: 'History' },
-  { key: 'associatedSymptoms', text: 'Do you have any other symptoms? (nausea, fever, fatigue, etc.)', type: 'text', required: false, category: 'Associated Symptoms' },
-  { key: 'aggravating', text: 'What makes the symptoms worse?', type: 'text', required: false, category: 'Aggravating Factors' },
-  { key: 'relieving', text: 'What provides relief from the symptoms?', type: 'text', required: false, category: 'Relieving Factors' },
-  { key: 'diet', text: 'Describe your typical daily diet.', type: 'text', required: false, category: 'Lifestyle' },
-  { key: 'sleep', text: 'How is your sleep pattern?', type: 'text', required: false, category: 'Lifestyle' },
-  { key: 'stress', text: 'What is your current stress level?', type: 'text', required: false, category: 'Lifestyle' },
-  { key: 'bowelMovements', text: 'Describe your bowel movement pattern.', type: 'text', required: false, category: 'Ayurvedic Assessment' },
-  { key: 'prakriti', text: 'Do you know your Ayurvedic body constitution?', type: 'select', options: ['Vata', 'Pitta', 'Kapha', 'Mixed', 'Unknown'], required: false, category: 'Ayurvedic Assessment' },
-  { key: 'tongueCoating', text: 'Do you notice any coating on your tongue?', type: 'text', required: false, category: 'Ayurvedic Assessment' },
-  { key: 'previousMedications', text: 'Are you currently taking any medications or supplements?', type: 'text', required: false, category: 'Medical History' },
-  { key: 'allergies', text: 'Do you have any known allergies?', type: 'text', required: false, category: 'Medical History' },
-  { key: 'familyHistory', text: 'Any significant health conditions in your family?', type: 'text', required: false, category: 'Medical History' },
+interface MockQuestion {
+  key: string;
+  text: string;
+  textHi?: string;
+  type: 'text' | 'select' | 'number' | 'boolean';
+  options?: string[];
+  optionsHi?: string[];
+  required: boolean;
+  category: string;
+  priority: number;
+  condition?: (answers: Record<string, string>) => boolean;
+}
+
+const baseQuestions: MockQuestion[] = [
+  { key: 'symptom_location', text: 'Where exactly do you feel the discomfort?', textHi: 'आपको असुविधा ठीक कहाँ महसूस हो रही है?', type: 'text', required: true, category: 'biomedical', priority: 1 },
+  { key: 'symptom_duration', text: 'How long have you been experiencing this?', textHi: 'आप यह कितने समय से अनुभव कर रहे हैं?', type: 'select', options: ['Less than 24 hours', '1-3 days', '4-7 days', '1-2 weeks', 'More than 2 weeks', 'Chronic/Recurring'], optionsHi: ['24 घंटे से कम', '1-3 दिन', '4-7 दिन', '1-2 सप्ताह', '2 सप्ताह से अधिक', 'पुरानी/आवर्ती'], required: true, category: 'biomedical', priority: 2 },
+  { key: 'symptom_severity', text: 'On a scale of 1-10, how severe is the discomfort?', textHi: '1-10 के पैमाने पर, असुविधा कितनी गंभीर है?', type: 'number', required: true, category: 'biomedical', priority: 3 },
+  { key: 'nausea_vomiting', text: 'Are you experiencing nausea or vomiting?', textHi: 'क्या आपको मतली या उल्टी हो रही है?', type: 'boolean', required: false, category: 'biomedical', priority: 4 },
+  { key: 'fever', text: 'Do you have fever or chills?', textHi: 'क्या आपको बुखार या ठंड लग रही है?', type: 'boolean', required: false, category: 'biomedical', priority: 5 },
+  { key: 'appetite_changes', text: 'Have you noticed any changes in your appetite?', textHi: 'क्या आपकी भूख में कोई बदलाव आया है?', type: 'select', options: ['Normal', 'Increased', 'Decreased', 'No appetite'], optionsHi: ['सामान्य', 'बढ़ी हुई', 'घटी हुई', 'भूख नहीं है'], required: false, category: 'biomedical', priority: 6 },
+  { key: 'sleep_quality', text: 'How is your sleep quality recently?', textHi: 'हाल ही में आपकी नींद की गुणवत्ता कैसी है?', type: 'select', options: ['Normal', 'Insomnia', 'Excessive sleep', 'Disturbed', 'Restless'], optionsHi: ['सामान्य', 'अनिद्रा', 'अत्यधिक नींद', 'बाधित', 'बेचैन'], required: false, category: 'ayurvedic', priority: 7 },
+  { key: 'bowel_movements', text: 'How would you describe your bowel movements?', textHi: 'आप अपने मल त्याग का वर्णन कैसे करेंगे?', type: 'select', options: ['Normal', 'Constipation', 'Loose stools', 'Diarrhea', 'Irregular'], optionsHi: ['सामान्य', 'कब्ज', 'दस्त', 'पतले मल', 'अनियमित'], required: false, category: 'ayurvedic', priority: 8 },
+  { key: 'stress_level', text: 'How would you rate your stress level?', textHi: 'आप अपने तनाव के स्तर को कैसे आंकेंगे?', type: 'select', options: ['Low', 'Moderate', 'High', 'Very High'], optionsHi: ['कम', 'मध्यम', 'उच्च', 'बहुत उच्च'], required: false, category: 'ayurvedic', priority: 9 },
+  { key: 'energy_level', text: 'How would you describe your energy level?', textHi: 'आप अपने ऊर्जा स्तर का वर्णन कैसे करेंगे?', type: 'select', options: ['High', 'Normal', 'Low', 'Very Low', 'Fluctuating'], optionsHi: ['उच्च', 'सामान्य', 'कम', 'बहुत कम', 'उतार-चढ़ाव वाला'], required: false, category: 'ayurvedic', priority: 10 }
 ];
+
+const digestiveQuestions: MockQuestion[] = [
+  { key: 'digestive_pain_type', text: 'What type of pain or discomfort do you feel?', textHi: 'आपको किस प्रकार का दर्द या असुविधा हो रही है?', type: 'select', options: ['Burning', 'Cramping', 'Bloating', 'Sharp', 'Dull ache', 'Pressure'], optionsHi: ['जलन', 'ऐंठन', 'सूजन', 'तेज दर्द', 'हल्का दर्द', 'दबाव'], required: true, category: 'biomedical', priority: 1, condition: (answers) => !!answers.symptom_location?.toLowerCase().includes('stomach') || !!answers.symptom_location?.toLowerCase().includes('abdomen') },
+  { key: 'bowel_frequency', text: 'How many times do you have bowel movements per day?', textHi: 'आप दिन में कितनी बार मल त्याग करते हैं?', type: 'number', required: false, category: 'biomedical', priority: 2, condition: (answers) => !!answers.bowel_movements && answers.bowel_movements !== 'Normal' },
+  { key: 'stool_consistency', text: 'How would you describe the consistency of your stools?', textHi: 'आप अपने मल की स्थिरता का वर्णन कैसे करेंगे?', type: 'select', options: ['Hard', 'Loose', 'Watery', 'Mushy', 'Normal'], optionsHi: ['सख्त', 'पतला', 'पानी जैसा', 'मुलायम', 'सामान्य'], required: false, category: 'biomedical', priority: 3 },
+  { key: 'agni', text: 'How is your digestive fire (Agni)?', textHi: 'आपकी पाचन अग्नि (अग्नि) कैसी है?', type: 'select', options: ['Strong - Digests everything well', 'Variable - Sometimes good, sometimes poor', 'Weak - Often feels undigested', 'Hyperactive - Too strong'], optionsHi: ['मजबूत - सब कुछ अच्छी तरह पचता है', 'परिवर्तनशील - कभी अच्छी, कभी खराब', 'कमजोर - अक्सर अपच महसूस होता है', 'अतिसक्रिय - बहुत मजबूत'], required: false, category: 'ayurvedic', priority: 4 },
+  { key: 'ahara', text: 'Describe your eating habits:', textHi: 'अपनी खाने की आदतों का वर्णन करें:', type: 'select', options: ['Regular meals', 'Irregular meals', 'Heavy meals', 'Light meals', 'Mixed'], optionsHi: ['नियमित भोजन', 'अनियमित भोजन', 'भारी भोजन', 'हल्का भोजन', 'मिश्रित'], required: false, category: 'ayurvedic', priority: 5 }
+];
+
+const respiratoryQuestions: MockQuestion[] = [
+  { key: 'cough_type', text: 'Do you have a cough?', textHi: 'क्या आपको खांसी है?', type: 'select', options: ['No cough', 'Dry cough', 'Productive cough (with phlegm)', 'Occasional cough'], optionsHi: ['खांसी नहीं', 'सूखी खांसी', 'उत्पादक खांसी (कफ के साथ)', 'कभी-कभी खांसी'], required: true, category: 'biomedical', priority: 1, condition: (answers) => !!answers.symptom_location?.toLowerCase().includes('chest') || !!answers.symptom_location?.toLowerCase().includes('breath') },
+  { key: 'breathing_difficulty', text: 'Are you experiencing difficulty breathing?', textHi: 'क्या आपको सांस लेने में कठिनाई हो रही है?', type: 'boolean', required: true, category: 'biomedical', priority: 2 },
+  { key: 'sputum_color', text: 'If coughing up phlegm, what color is it?', textHi: 'अगर कफ आ रहा है, तो उसका रंग क्या है?', type: 'select', options: ['Clear', 'White', 'Yellow', 'Green', 'Blood-tinged'], optionsHi: ['साफ', 'सफेद', 'पीला', 'हरा', 'खून वाला'], required: false, category: 'biomedical', priority: 3 }
+];
+
+const musculoskeletalQuestions: MockQuestion[] = [
+  { key: 'joint_swelling', text: 'Is there any swelling in the affected area?', textHi: 'क्या प्रभावित क्षेत्र में कोई सूजन है?', type: 'boolean', required: true, category: 'biomedical', priority: 1, condition: (answers) => !!answers.symptom_location?.toLowerCase().includes('joint') || !!answers.symptom_location?.toLowerCase().includes('knee') || !!answers.symptom_location?.toLowerCase().includes('shoulder') },
+  { key: 'movement_limitation', text: 'Is your movement limited due to this issue?', textHi: 'क्या इस समस्या के कारण आपकी गतिविधि सीमित है?', type: 'boolean', required: true, category: 'biomedical', priority: 2 },
+  { key: 'morning_stiffness', text: 'Do you experience morning stiffness?', textHi: 'क्या आपको सुबह की अकड़न होती है?', type: 'boolean', required: false, category: 'biomedical', priority: 3 }
+];
+
+function getComplaintCategory(complaint: string): string {
+  const lower = complaint.toLowerCase();
+  if (lower.includes('stomach') || lower.includes('abdomen') || lower.includes('digest') || lower.includes('nausea') || lower.includes('vomit') || lower.includes('diarrhea') || lower.includes('constipation') || lower.includes('bloating') || lower.includes('पेट') || lower.includes('पाचन')) return 'digestive';
+  if (lower.includes('chest') || lower.includes('breath') || lower.includes('cough') || lower.includes('cold') || lower.includes('throat') || lower.includes('lung') || lower.includes('सांस') || lower.includes('खांसी')) return 'respiratory';
+  if (lower.includes('joint') || lower.includes('bone') || lower.includes('muscle') || lower.includes('back') || lower.includes('knee') || lower.includes('shoulder') || lower.includes('जोड़') || lower.includes('पीठ')) return 'musculoskeletal';
+  if (lower.includes('head') || lower.includes('migraine') || lower.includes('dizziness') || lower.includes('सिर') || lower.includes('चक्कर')) return 'neurological';
+  return 'general';
+}
+
+const URGENT_KEYWORDS = ['chest pain', 'difficulty breathing', 'severe bleeding', 'unconscious', 'seizure', 'stroke', 'heart attack', 'anaphylaxis', 'severe allergic', 'high fever', 'severe headache', 'stiff neck', 'confusion'];
+const ATTENTION_KEYWORDS = ['persistent', 'worsening', 'chronic', 'recurrent', 'multiple', 'family history', 'previous surgery', 'medication'];
+
+function generateMockRedFlags(data: { severity?: number; chiefComplaint?: string; vitals?: any; biomedicalAssessment?: any }): Array<{ level: string; code: string; reason: string }> {
+  const flags: Array<{ level: string; code: string; reason: string }> = [];
+
+  if (data.severity && data.severity >= 8) {
+    flags.push({ level: 'URGENT', code: 'HIGH_SEVERITY', reason: `Patient reported high symptom severity (${data.severity}/10)` });
+  } else if (data.severity && data.severity >= 6) {
+    flags.push({ level: 'ATTENTION', code: 'MODERATE_SEVERITY', reason: `Patient reported moderate symptom severity (${data.severity}/10)` });
+  }
+
+  if (data.vitals) {
+    if (data.vitals.systolicBP && data.vitals.systolicBP > 180) {
+      flags.push({ level: 'URGENT', code: 'HYPERTENSIVE_CRISIS', reason: `Extremely high systolic blood pressure: ${data.vitals.systolicBP} mmHg` });
+    } else if (data.vitals.systolicBP && data.vitals.systolicBP > 140) {
+      flags.push({ level: 'ATTENTION', code: 'HIGH_BP', reason: `Elevated systolic blood pressure: ${data.vitals.systolicBP} mmHg` });
+    }
+    if (data.vitals.spo2 && data.vitals.spo2 < 90) {
+      flags.push({ level: 'URGENT', code: 'LOW_SPO2', reason: `Critically low oxygen saturation: ${data.vitals.spo2}%` });
+    } else if (data.vitals.spo2 && data.vitals.spo2 < 94) {
+      flags.push({ level: 'ATTENTION', code: 'LOW_SPO2_ATTENTION', reason: `Low oxygen saturation: ${data.vitals.spo2}%` });
+    }
+    if (data.vitals.temperature && data.vitals.temperature > 39.5) {
+      flags.push({ level: 'URGENT', code: 'HIGH_FEVER', reason: `High fever detected: ${data.vitals.temperature}°C` });
+    } else if (data.vitals.temperature && data.vitals.temperature > 38) {
+      flags.push({ level: 'ATTENTION', code: 'FEVER', reason: `Fever detected: ${data.vitals.temperature}°C` });
+    }
+    if (data.vitals.pulse && (data.vitals.pulse > 120 || data.vitals.pulse < 50)) {
+      flags.push({ level: 'ATTENTION', code: 'ABNORMAL_PULSE', reason: `Abnormal pulse rate: ${data.vitals.pulse} bpm` });
+    }
+  }
+
+  if (data.chiefComplaint) {
+    const complaintLower = data.chiefComplaint.toLowerCase();
+    for (const keyword of URGENT_KEYWORDS) {
+      if (complaintLower.includes(keyword)) {
+        flags.push({ level: 'URGENT', code: 'URGENT_SYMPTOM', reason: `Concerning symptom mentioned: "${keyword}"` });
+        break;
+      }
+    }
+    for (const keyword of ATTENTION_KEYWORDS) {
+      if (complaintLower.includes(keyword)) {
+        flags.push({ level: 'ATTENTION', code: 'ATTENTION_SYMPTOM', reason: `Symptom requiring attention: "${keyword}"` });
+        break;
+      }
+    }
+  }
+
+  if (data.biomedicalAssessment?.allergies) {
+    const allergyLower = data.biomedicalAssessment.allergies.toLowerCase();
+    if (allergyLower.includes('severe') || allergyLower.includes('anaphylaxis')) {
+      flags.push({ level: 'URGENT', code: 'SEVERE_ALLERGY', reason: 'Severe allergy history noted' });
+    } else if (data.biomedicalAssessment.allergies.length > 0) {
+      flags.push({ level: 'ATTENTION', code: 'ALLERGY_HISTORY', reason: 'Allergy history present - verify before prescribing' });
+    }
+  }
+
+  if (flags.length === 0) {
+    flags.push({ level: 'NORMAL', code: 'NO_FLAGS', reason: 'No immediate safety concerns identified' });
+  }
+
+  return flags;
+}
+
+function getAdaptiveNextQuestion(chiefComplaint: string, answeredKeys: Set<string>, answersMap: Record<string, string>, language: string): MockQuestion | null {
+  const category = getComplaintCategory(chiefComplaint);
+  let categoryQuestions: MockQuestion[] = [];
+  switch (category) {
+    case 'digestive': categoryQuestions = digestiveQuestions; break;
+    case 'respiratory': categoryQuestions = respiratoryQuestions; break;
+    case 'musculoskeletal': categoryQuestions = musculoskeletalQuestions; break;
+    default: categoryQuestions = [];
+  }
+  const allQuestions = [...baseQuestions, ...categoryQuestions];
+  const filtered = allQuestions.filter(q => {
+    if (answeredKeys.has(q.key)) return false;
+    if (q.condition && !q.condition(answersMap)) return false;
+    return true;
+  });
+  filtered.sort((a, b) => a.priority - b.priority);
+  const next = filtered[0] || null;
+  if (next && language === 'hi') {
+    return { ...next, text: next.textHi || next.text, options: next.optionsHi || next.options };
+  }
+  return next;
+}
 
 function makeResponse<T>(data: T, status = 200): AxiosResponse<T> {
   return {
@@ -135,6 +257,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       chiefComplaint: data.chiefComplaint || '',
       duration: data.duration || '',
       severity: data.severity || 5,
+      language: data.language || 'en',
       status: 'IN_PROGRESS',
       generatedSummary: null,
       summaryApproved: false,
@@ -154,8 +277,11 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'GET' && nqMatch) {
     const enc = DEMO_ENCOUNTERS[nqMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
-    const answered = enc.interviewResponses.map((r: any) => r.questionKey);
-    const next = INTERVIEW_QUESTIONS.find(q => !answered.includes(q.key));
+    const answered = new Set<string>(enc.interviewResponses.map((r: any) => r.questionKey));
+    const answersMap: Record<string, string> = {};
+    enc.interviewResponses.forEach((r: any) => { answersMap[r.questionKey] = r.response; });
+    const language = enc.language || 'en';
+    const next = getAdaptiveNextQuestion(enc.chiefComplaint || '', answered, answersMap, language);
     return makeResponse({ question: next || null });
   }
 
@@ -195,10 +321,75 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const enc = DEMO_ENCOUNTERS[gsMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     const resps = enc.interviewResponses.map((r: any) => `- ${r.questionText}: ${r.response}`).join('\n');
-    enc.generatedSummary = `**Clinical Summary - ${enc.chiefComplaint || 'General Consultation'}**\n\n**Chief Complaint:** ${enc.chiefComplaint || 'Not specified'}\n**Duration:** ${enc.duration || 'Not specified'}\n**Severity:** ${enc.severity}/10\n\n**Patient Responses:**\n${resps || 'No interview responses recorded.'}\n\n**Assessment:**\nPatient presents with ${enc.chiefComplaint || 'symptoms'} lasting ${enc.duration || 'unknown duration'}. Based on interview responses, the condition requires further evaluation.\n\n**Recommendations:**\n1. Continue monitoring symptoms\n2. Maintain symptom diary\n3. Follow up in 2 weeks\n4. Consider relevant investigations`;
-    enc.redFlags = enc.severity >= 8 ? [{ level: 'ATTENTION', message: 'High severity reported', detectedAt: new Date().toISOString() }] : [];
-    enc.biomedicalAssessment = { findings: enc.chiefComplaint || 'No significant findings' };
-    enc.ayurvedicAssessment = { prakriti: 'Mixed', vikriti: 'Pitta-Kapha imbalance suspected' };
+    
+    const flags = generateMockRedFlags({
+      severity: enc.severity,
+      chiefComplaint: enc.chiefComplaint,
+      vitals: enc.vitals,
+      biomedicalAssessment: enc.biomedicalAssessment
+    });
+    
+    enc.redFlags = flags;
+    
+    const sections: string[] = [];
+    sections.push(`## AI-GENERATED CLINICAL SUMMARY`);
+    sections.push(`**REVIEW REQUIRED BY QUALIFIED PRACTITIONER**\n`);
+    sections.push(`### Patient Information`);
+    sections.push(`- Name: ${enc.patient?.fullName || 'Unknown'}`);
+    sections.push(`- Age: ${enc.patient?.age || 'Unknown'} years`);
+    sections.push(`- Gender: ${enc.patient?.gender || 'Unknown'}`);
+    sections.push(`- Visit Date: ${new Date().toLocaleDateString()}\n`);
+    
+    if (enc.chiefComplaint) {
+      sections.push(`### Chief Complaint`);
+      sections.push(`${enc.chiefComplaint}`);
+      if (enc.duration) sections.push(`Duration: ${enc.duration}`);
+      if (enc.severity) sections.push(`Severity: ${enc.severity}/10`);
+      sections.push('');
+    }
+    
+    if (resps) {
+      sections.push(`### History of Present Illness`);
+      sections.push(resps);
+      sections.push('');
+    }
+    
+    if (enc.vitals) {
+      sections.push(`### Vital Signs`);
+      const v = enc.vitals;
+      if (v.systolicBP && v.diastolicBP) sections.push(`BP: ${v.systolicBP}/${v.diastolicBP} mmHg`);
+      if (v.pulse) sections.push(`Pulse: ${v.pulse} bpm`);
+      if (v.temperature) sections.push(`Temperature: ${v.temperature}°C`);
+      if (v.spo2) sections.push(`SpO2: ${v.spo2}%`);
+      sections.push('');
+    }
+    
+    if (flags.length > 0) {
+      sections.push(`### Safety Flags`);
+      for (const flag of flags) {
+        sections.push(`- [${flag.level}] ${flag.reason}`);
+      }
+      sections.push('');
+    }
+    
+    sections.push(`### Missing Information`);
+    const missing: string[] = [];
+    if (!enc.vitals) missing.push('Vital signs not yet recorded');
+    if (enc.interviewResponses.length < 3) missing.push('Limited interview responses collected');
+    if (!enc.biomedicalAssessment) missing.push('Biomedical assessment not completed');
+    if (missing.length > 0) {
+      for (const m of missing) sections.push(`- ${m}`);
+    } else {
+      sections.push('- No significant missing information');
+    }
+    sections.push('');
+    
+    sections.push(`---`);
+    sections.push(`*AI GENERATED — PHYSICIAN REVIEW REQUIRED*`);
+    sections.push(`*This summary was AI-generated and requires review by a qualified healthcare practitioner.*`);
+    
+    enc.generatedSummary = sections.join('\n');
+    enc.biomedicalAssessment = enc.biomedicalAssessment || { findings: enc.chiefComplaint || 'No significant findings' };
     return makeResponse({ summary: enc.generatedSummary });
   }
 
@@ -223,7 +414,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
 
   // POST /documents/upload
   if (method === 'POST' && url === '/documents/upload') {
-    return makeResponse({ extraction: { text: 'OCR extraction complete with 92% confidence.', structuredData: { medications: ['Triphala Churna', 'Ashwagandha'], dosage: 'As directed', practitioner: 'Dr. Sharma' }, confidence: 0.92 } });
+    return makeResponse({ extraction: { text: '[DEMO OCR EXTRACTION] This is simulated extraction from the uploaded document.\n\nIn a production environment, this would contain the actual text extracted using OCR technology.', structuredData: { medications: ['Triphala Churna', 'Ashwagandha'], dosage: 'As directed', practitioner: 'Dr. Sharma' }, confidence: 0.92, isMock: true } });
   }
 
   // GET /follow-ups/due

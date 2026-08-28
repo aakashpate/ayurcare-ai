@@ -175,11 +175,14 @@ export default function Review() {
       </div>
 
       {/* AI Disclaimer */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
         <div className="flex">
-          <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+          <AlertTriangle className="h-6 w-6 text-red-500 flex-shrink-0" />
           <div className="ml-3">
-            <p className="text-sm text-yellow-700 font-medium">
+            <p className="text-sm text-red-800 font-bold">
+              AI GENERATED — PHYSICIAN REVIEW REQUIRED
+            </p>
+            <p className="text-sm text-red-700 mt-1">
               {t('review.aiDisclaimer')}
             </p>
           </div>

@@ -68,18 +68,6 @@ class MockAIProvider implements AIProvider {
       sections.push('');
     }
 
-    if (data.ayurvedicAssessment) {
-      sections.push(`### Ayurvedic Assessment`);
-      const a = data.ayurvedicAssessment;
-      if (a.prakriti) sections.push(`Prakriti: ${a.prakriti}`);
-      if (a.vikriti) sections.push(`Vikriti: ${a.vikriti}`);
-      if (a.agni) sections.push(`Agni: ${a.agni}`);
-      if (a.ahara) sections.push(`Ahara: ${a.ahara}`);
-      if (a.nidra) sections.push(`Nidra: ${a.nidra}`);
-      if (a.bowelPattern) sections.push(`Bowel Pattern: ${a.bowelPattern}`);
-      sections.push('');
-    }
-
     if (data.vitals) {
       sections.push(`### Vital Signs`);
       const v = data.vitals;
@@ -99,9 +87,21 @@ class MockAIProvider implements AIProvider {
       sections.push('');
     }
 
+    sections.push(`### Missing Information`);
+    const missing: string[] = [];
+    if (!data.vitals) missing.push('Vital signs not yet recorded');
+    if (!data.interviewResponses || data.interviewResponses.length < 3) missing.push('Limited interview responses collected');
+    if (!data.biomedicalAssessment) missing.push('Biomedical assessment not completed');
+    if (missing.length > 0) {
+      for (const m of missing) sections.push(`- ${m}`);
+    } else {
+      sections.push('- No significant missing information');
+    }
+    sections.push('');
+
     sections.push(`---`);
+    sections.push(`*AI GENERATED — PHYSICIAN REVIEW REQUIRED*`);
     sections.push(`*This summary was AI-generated and requires review by a qualified healthcare practitioner.*`);
-    sections.push(`*AI-generated information — physician review required.*`);
 
     return sections.join('\n');
   }
@@ -150,7 +150,7 @@ class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: `You are a clinical documentation assistant for AYUSH healthcare. Summarize the provided patient encounter data in a structured format. Do NOT diagnose or prescribe. Mark missing information explicitly. All output requires clinician review.`
+              content: `You are a clinical documentation assistant for AYUSH healthcare. Summarize the provided patient encounter data in a structured format. Do NOT diagnose, prescribe, recommend treatments, or make speculative conclusions about dosha/vikriti. Mark missing information explicitly. All output requires clinician review. Always include "AI GENERATED — PHYSICIAN REVIEW REQUIRED" at the top.`
             },
             {
               role: 'user',
@@ -161,7 +161,7 @@ class OpenAIProvider implements AIProvider {
         })
       });
 
-      const result = await response.json();
+      const result = await response.json() as any;
       return result.choices[0].message.content;
     } catch (error) {
       console.error('OpenAI API error:', error);

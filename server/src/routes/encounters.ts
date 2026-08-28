@@ -12,13 +12,15 @@ const createEncounterSchema = z.object({
   visitType: z.enum(['INITIAL', 'FOLLOW_UP']).optional(),
   chiefComplaint: z.string().optional(),
   duration: z.string().optional(),
-  severity: z.number().int().min(1).max(10).optional()
+  severity: z.number().int().min(1).max(10).optional(),
+  language: z.string().optional()
 });
 
 const updateEncounterSchema = z.object({
   chiefComplaint: z.string().optional(),
   duration: z.string().optional(),
   severity: z.number().int().min(1).max(10).optional(),
+  language: z.string().optional(),
   status: z.enum(['IN_PROGRESS', 'COMPLETED', 'REVIEWED', 'APPROVED']).optional()
 });
 
@@ -172,7 +174,8 @@ router.get('/:id/next-question', async (req: AuthRequest, res: Response) => {
     const { getNextQuestion } = await import('../services/questionEngine');
     const nextQuestion = getNextQuestion(
       encounter.chiefComplaint || '',
-      encounter.interviewResponses.map(r => ({ key: r.questionKey, value: r.response }))
+      encounter.interviewResponses.map(r => ({ key: r.questionKey, value: r.response })),
+      encounter.language || 'en'
     );
 
     res.json({ question: nextQuestion });

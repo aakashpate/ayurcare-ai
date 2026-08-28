@@ -9,7 +9,11 @@ import {
   Clock,
   AlertTriangle,
   Printer,
-  QrCode
+  QrCode,
+  Link as LinkIcon,
+  TrendingDown,
+  TrendingUp,
+  Minus
 } from 'lucide-react';
 
 interface Patient {
@@ -330,6 +334,97 @@ export default function PatientDetail() {
           </div>
         </div>
       )}
+
+      {/* Severity Trend */}
+      {patient.encounters.length > 1 && (
+        <div className="card">
+          <h2 className="text-lg font-serif font-semibold text-gray-900 mb-4">Severity Trend</h2>
+          <div className="flex items-center gap-4 overflow-x-auto pb-2">
+            {patient.encounters.filter(e => e.severity).map((encounter, index) => {
+              const prevEncounter = patient.encounters[index + 1];
+              const trend = prevEncounter?.severity 
+                ? encounter.severity! - prevEncounter.severity 
+                : 0;
+              return (
+                <div key={encounter.id} className="flex items-center gap-2">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${
+                      encounter.severity! >= 8 ? 'text-red-600' :
+                      encounter.severity! >= 5 ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {encounter.severity}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(encounter.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                  {index < patient.encounters.length - 1 && (
+                    <div className="flex items-center text-gray-400">
+                      {trend < 0 ? <TrendingDown className="w-5 h-5 text-green-500" /> :
+                       trend > 0 ? <TrendingUp className="w-5 h-5 text-red-500" /> :
+                       <Minus className="w-5 h-5" />}
+                      <span className="text-xs ml-1">{trend > 0 ? '+' : ''}{trend}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Documents */}
+      {patient.documents.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-serif font-semibold text-gray-900 mb-4">Medical Documents</h2>
+          <div className="space-y-2">
+            {patient.documents.map((doc) => (
+              <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <FileText className="w-5 h-5 text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{doc.filename}</p>
+                  <p className="text-xs text-gray-500">
+                    Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                  DEMO EXTRACTION
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ABHA/HIS Integration (Prototype) */}
+      <div className="card border-2 border-dashed border-gray-300">
+        <div className="flex items-center gap-3 mb-4">
+          <LinkIcon className="w-6 h-6 text-blue-500" />
+          <h2 className="text-lg font-serif font-semibold text-gray-900">Integration Status</h2>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+            <div>
+              <p className="font-medium text-sm">ABHA (Ayushman Bharat Health Account)</p>
+              <p className="text-xs text-gray-500">Prototype Integration — Not connected to production ABDM</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+            <div>
+              <p className="font-medium text-sm">Hospital Information System (HIS)</p>
+              <p className="text-xs text-gray-500">Prototype Integration — Conceptual data flow demonstrated</p>
+            </div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+            <p className="text-xs text-blue-700">
+              <strong>Data Flow:</strong> Patient → Structured Clinical Data → Doctor Confirmation → ABHA/ABDM → HIS
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

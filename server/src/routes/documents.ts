@@ -37,10 +37,11 @@ async function extractDocumentData(filePath: string, mimeType: string): Promise<
   text: string;
   structuredData: any;
   confidence: number;
+  isMock: boolean;
 }> {
   if (process.env.OCR_PROVIDER === 'mock' || !process.env.OCR_API_KEY) {
     return {
-      text: `[Demo OCR Extraction] This is simulated extraction from ${path.basename(filePath)}.\n\nIn a production environment, this would contain the actual text extracted from the document using OCR technology.\n\nExtracted information would include:\n- Patient name\n- Medications\n- Diagnoses\n- Lab results\n- Doctor recommendations`,
+      text: `[DEMO OCR EXTRACTION] This is simulated extraction from ${path.basename(filePath)}.\n\nIn a production environment, this would contain the actual text extracted from the document using OCR technology.\n\nExtracted information would include:\n- Patient name\n- Medications\n- Diagnoses\n- Lab results\n- Doctor recommendations`,
       structuredData: {
         patientName: 'Extracted Patient Name',
         medications: ['Medication 1', 'Medication 2'],
@@ -49,14 +50,16 @@ async function extractDocumentData(filePath: string, mimeType: string): Promise<
         doctor: 'Dr. Extracted',
         date: new Date().toISOString().split('T')[0]
       },
-      confidence: 0.85
+      confidence: 0.85,
+      isMock: true
     };
   }
 
   return {
     text: 'OCR extraction not configured',
     structuredData: null,
-    confidence: 0
+    confidence: 0,
+    isMock: false
   };
 }
 
@@ -102,7 +105,8 @@ router.post('/upload', upload.single('document'), async (req: AuthRequest, res: 
       extraction: {
         text: extraction.text,
         structuredData: extraction.structuredData,
-        confidence: extraction.confidence
+        confidence: extraction.confidence,
+        isMock: extraction.isMock
       }
     });
   } catch (error) {
