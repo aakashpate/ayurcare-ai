@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { setLanguage } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { 
-  Heart, Shield, Globe, User, MessageCircle, 
+import {
+  Heart, Shield, Globe, User, MessageCircle,
   ClipboardList, FileText, AlertTriangle, CheckCircle,
   ArrowRight, ArrowLeft, Mic, MicOff, Send, Loader2
 } from 'lucide-react';
@@ -22,9 +22,13 @@ interface IntakeState {
   chiefComplaint: string;
   chiefComplaintCategory: string;
   responses: Array<{ key: string; text: string; textHi?: string; value: string; source: string }>;
-  biomedicalData: any;
-  ayurvedicData: any;
+  biomedicalData: Record<string, string>;
+  ayurvedicData: Record<string, string>;
   redFlags: any[];
+  uploadedDocs: Array<{ name: string; type: string }>;
+  summary: string;
+  generating: boolean;
+  editingSummary: boolean;
 }
 
 const CHIEF_COMPLAINTS = [
@@ -98,7 +102,7 @@ export default function PatientIntake() {
     patientId: null,
     encounterId: null,
     fullName: '',
-    age: 30,
+    age: 0,
     gender: 'MALE',
     phone: '',
     chiefComplaint: '',
@@ -107,6 +111,10 @@ export default function PatientIntake() {
     biomedicalData: {},
     ayurvedicData: {},
     redFlags: [],
+    uploadedDocs: [],
+    summary: '',
+    generating: false,
+    editingSummary: false,
   });
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -115,6 +123,8 @@ export default function PatientIntake() {
 
   const lang = state.language;
   const isHi = lang === 'hi';
+
+  const isMockMode = !import.meta.env.VITE_API_URL;
 
   const updateState = (partial: Partial<IntakeState>) => {
     setState(prev => ({ ...prev, ...partial }));
@@ -532,14 +542,14 @@ export default function PatientIntake() {
 
   // Step 5: Biomedical History
   const renderBiomedical = () => {
-    const [bio, setBio] = useState({
-      pastMedical: '',
-      pastSurgical: '',
-      drugHistory: '',
-      allergies: '',
-      familyHistory: '',
-      personalHistory: '',
-    });
+    const fields = [
+      { key: 'pastMedical', label: isHi ? 'पिछली चिकित्सीय स्थितियां' : 'Past Medical Conditions', placeholder: isHi ? 'जैसे: मधुमेह, उच्च रक्तचाप' : 'e.g., Diabetes, Hypertension' },
+      { key: 'pastSurgical', label: isHi ? 'पिछली सर्जरी' : 'Past Surgical History', placeholder: isHi ? 'जैसे: अपेंडेक्टॉमी, घुटने की सर्जरी' : 'e.g., Appendectomy, Knee surgery' },
+      { key: 'drugHistory', label: isHi ? 'वर्तमान दवाएं' : 'Current Medications', placeholder: isHi ? 'जैसे: मेटफॉर्मिन, एम्लोडिपिन' : 'e.g., Metformin, Amlodipine' },
+      { key: 'allergies', label: isHi ? 'एलर्जी' : 'Allergies', placeholder: isHi ? 'जैसे: पेनिसिलिन, धूल' : 'e.g., Penicillin, Dust' },
+      { key: 'familyHistory', label: isHi ? 'पारिवारिक इतिहास' : 'Family History', placeholder: isHi ? 'जैसे: माता-पिता को मधुमेह' : 'e.g., Parents with diabetes' },
+      { key: 'personalHistory', label: isHi ? 'व्यक्तिगत इतिहास' : 'Personal History', placeholder: isHi ? 'जैसे: धूम्रपान, व्यायाम की आदतें' : 'e.g., Smoking, Exercise habits' },
+    ];
 
     return (
       <div className="space-y-6">
@@ -551,19 +561,12 @@ export default function PatientIntake() {
         </div>
 
         <div className="space-y-4">
-          {[
-            { key: 'pastMedical', label: isHi ? 'पिछली चिकित्सीय स्थितियां' : 'Past Medical Conditions', placeholder: isHi ? 'जैसे: मधुमेह, उच्च रक्तचाप' : 'e.g., Diabetes, Hypertension' },
-            { key: 'pastSurgical', label: isHi ? 'पिछली सर्जरी' : 'Past Surgical History', placeholder: isHi ? 'जैसे: अपेंडेक्टॉमी, घुटने की सर्जरी' : 'e.g., Appendectomy, Knee surgery' },
-            { key: 'drugHistory', label: isHi ? 'वर्तमान दवाएं' : 'Current Medications', placeholder: isHi ? 'जैसे: मेटफॉर्मिन, एम्लोडिपिन' : 'e.g., Metformin, Amlodipine' },
-            { key: 'allergies', label: isHi ? 'एलर्जी' : 'Allergies', placeholder: isHi ? 'जैसे: पेनिसिलिन, धूल' : 'e.g., Penicillin, Dust' },
-            { key: 'familyHistory', label: isHi ? 'पारिवारिक इतिहास' : 'Family History', placeholder: isHi ? 'जैसे: माता-पिता को मधुमेह' : 'e.g., Parents with diabetes' },
-            { key: 'personalHistory', label: isHi ? 'व्यक्तिगत इतिहास' : 'Personal History', placeholder: isHi ? 'जैसे: धूम्रपान, व्यायाम की आदतें' : 'e.g., Smoking, Exercise habits' },
-          ].map(({ key, label, placeholder }) => (
+          {fields.map(({ key, label, placeholder }) => (
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
               <textarea
-                value={(bio as any)[key]}
-                onChange={(e) => setBio({ ...bio, [key]: e.target.value })}
+                value={state.biomedicalData[key] || ''}
+                onChange={(e) => updateState({ biomedicalData: { ...state.biomedicalData, [key]: e.target.value } })}
                 className="input-field"
                 rows={2}
                 placeholder={placeholder}
@@ -577,8 +580,8 @@ export default function PatientIntake() {
             <ArrowLeft className="w-4 h-4 mr-2 inline" />
             {isHi ? 'वापस' : 'Back'}
           </button>
-          <button 
-            onClick={() => { updateState({ biomedicalData: bio, step: 6 }); }}
+          <button
+            onClick={() => updateState({ step: 6 })}
             className="btn-primary flex-1"
           >
             {isHi ? 'आगे बढ़ें' : 'Continue'}
@@ -591,8 +594,6 @@ export default function PatientIntake() {
 
   // Step 6: Ayurveda Assessment
   const renderAyurveda = () => {
-    const [answers, setAnswers] = useState<Record<string, string>>({});
-
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">
@@ -616,9 +617,9 @@ export default function PatientIntake() {
                   {options?.map((opt, i) => (
                     <button
                       key={i}
-                      onClick={() => setAnswers({ ...answers, [q.key]: opt })}
+                      onClick={() => updateState({ ayurvedicData: { ...state.ayurvedicData, [q.key]: opt } })}
                       className={`p-2 border-2 rounded-lg text-left text-sm transition-all ${
-                        answers[q.key] === opt
+                        state.ayurvedicData[q.key] === opt
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
@@ -634,7 +635,7 @@ export default function PatientIntake() {
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-sm text-amber-800">
-            {isHi 
+            {isHi
               ? 'यह मूल्यांकन मार्गदर्शन के लिए है। डॉक्टर इसकी पुष्टि करेंगे।'
               : 'This assessment is for guidance. The doctor will confirm it.'}
           </p>
@@ -645,8 +646,8 @@ export default function PatientIntake() {
             <ArrowLeft className="w-4 h-4 mr-2 inline" />
             {isHi ? 'वापस' : 'Back'}
           </button>
-          <button 
-            onClick={() => { updateState({ ayurvedicData: answers, step: 7 }); }}
+          <button
+            onClick={() => updateState({ step: 7 })}
             className="btn-primary flex-1"
           >
             {isHi ? 'आगे बढ़ें' : 'Continue'}
@@ -659,10 +660,8 @@ export default function PatientIntake() {
 
   // Step 7: Documents
   const renderDocuments = () => {
-    const [uploaded, setUploaded] = useState<Array<{ name: string; type: string }>>([]);
-
     const handleUpload = (type: string) => {
-      setUploaded([...uploaded, { name: `demo_${type.toLowerCase()}.pdf`, type }]);
+      updateState({ uploadedDocs: [...state.uploadedDocs, { name: `demo_${type.toLowerCase()}.pdf`, type }] });
       toast.success(isHi ? 'दस्तावेज़ अपलोड किया गया' : 'Document uploaded');
     };
 
@@ -696,10 +695,10 @@ export default function PatientIntake() {
           ))}
         </div>
 
-        {uploaded.length > 0 && (
+        {state.uploadedDocs.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-medium text-gray-700">{isHi ? 'अपलोड किए गए' : 'Uploaded'}</h3>
-            {uploaded.map((doc, i) => (
+            {state.uploadedDocs.map((doc, i) => (
               <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <FileText className="w-5 h-5 text-gray-400" />
                 <div className="flex-1">
@@ -716,7 +715,7 @@ export default function PatientIntake() {
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-sm text-amber-800">
-            {isHi 
+            {isHi
               ? 'DEMO/SIMULATED — वास्तविक OCR एकीकरण भविष्य की योजना है'
               : 'DEMO/SIMULATED — Real OCR integration is a roadmap item'}
           </p>
@@ -738,14 +737,39 @@ export default function PatientIntake() {
 
   // Step 8: Summary (to be generated via API)
   const renderSummary = () => {
-    const [summary, setSummary] = useState('');
-    const [generating, setGenerating] = useState(false);
-    const [editing, setEditing] = useState(false);
-
     const handleGenerate = async () => {
-      setGenerating(true);
+      updateState({ generating: true });
       try {
-        // Create patient and encounter first
+        if (isMockMode) {
+          const mockSummary = `AI-GENERATED CLINICAL SUMMARY (DEMO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Patient: ${state.fullName}
+Age: ${state.age}
+Gender: ${state.gender}
+Language: ${state.language === 'hi' ? 'Hindi' : 'English'}
+Chief Complaint: ${state.chiefComplaint}
+
+INTERVIEW RESPONSES:
+${state.responses.map(r => `• ${r.text}: ${r.value}`).join('\n')}
+
+BIOMEDICAL HISTORY:
+${Object.entries(state.biomedicalData).filter(([_, v]) => v).map(([k, v]) => `• ${k}: ${v}`).join('\n') || 'Not provided'}
+
+AYURVEDIC ASSESSMENT:
+${Object.entries(state.ayurvedicData).filter(([_, v]) => v).map(([k, v]) => `• ${k}: ${v}`).join('\n') || 'Not provided'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI GENERATED — PHYSICIAN REVIEW REQUIRED
+DEMO DATA — Not for clinical use`;
+
+          updateState({ 
+            summary: mockSummary,
+            generating: false 
+          });
+          toast.success(isHi ? 'सारांश तैयार! (DEMO)' : 'Summary generated! (DEMO)');
+          return;
+        }
+
         const patientRes = await api.post('/patients', {
           fullName: state.fullName,
           age: state.age,
@@ -754,7 +778,6 @@ export default function PatientIntake() {
           consentGiven: true,
         });
         const patientId = patientRes.data.patient.id;
-        updateState({ patientId });
 
         const encRes = await api.post('/encounters', {
           patientId,
@@ -763,9 +786,7 @@ export default function PatientIntake() {
           language: state.language,
         });
         const encounterId = encRes.data.encounter.id;
-        updateState({ encounterId });
 
-        // Save responses
         for (const r of state.responses) {
           await api.post(`/encounters/${encounterId}/responses`, {
             questionKey: r.key,
@@ -776,7 +797,6 @@ export default function PatientIntake() {
           });
         }
 
-        // Save biomedical
         await api.put(`/encounters/${encounterId}/biomedical`, {
           pastMedicalHistory: state.biomedicalData.pastMedical || '',
           medications: state.biomedicalData.drugHistory || '',
@@ -784,27 +804,28 @@ export default function PatientIntake() {
           familyHistory: state.biomedicalData.familyHistory || '',
         });
 
-        // Save ayurvedic
         await api.put(`/encounters/${encounterId}/ayurvedic`, {
           agni: state.ayurvedicData.agni || '',
           ahara: state.ayurvedicData.ahara || '',
           nidra: state.ayurvedicData.nidra || '',
         });
 
-        // Generate summary
         const summaryRes = await api.post(`/encounters/${encounterId}/generate-summary`);
-        setSummary(summaryRes.data.summary);
-
-        // Check red flags
         const flagsRes = await api.post(`/encounters/${encounterId}/check-red-flags`);
-        updateState({ redFlags: flagsRes.data.redFlags });
+
+        updateState({ 
+          patientId, 
+          encounterId, 
+          summary: summaryRes.data.summary, 
+          redFlags: flagsRes.data.redFlags,
+          generating: false 
+        });
 
         toast.success(isHi ? 'सारांश तैयार!' : 'Summary generated!');
       } catch (error) {
         console.error(error);
         toast.error(isHi ? 'सारांश बनाने में विफल' : 'Failed to generate summary');
-      } finally {
-        setGenerating(false);
+        updateState({ generating: false });
       }
     };
 
@@ -817,7 +838,7 @@ export default function PatientIntake() {
           </h2>
         </div>
 
-        {state.redFlags.length > 0 && state.redFlags[0].code !== 'NO_FLAGS' && (
+        {state.redFlags.length > 0 && state.redFlags[0]?.code !== 'NO_FLAGS' && (
           <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -826,7 +847,7 @@ export default function PatientIntake() {
                   {isHi ? '⚠ प्राथमिकता अलर्ट' : '⚠ PRIORITY ALERT'}
                 </p>
                 <p className="text-sm text-red-700">
-                  {isHi 
+                  {isHi
                     ? 'संभावित लाल झंडा पकड़ा गया। कृपया ट्रायज स्टाफ को सूचित करें।'
                     : 'Potential red flag detected. Please alert triage staff.'}
                 </p>
@@ -838,14 +859,14 @@ export default function PatientIntake() {
           </div>
         )}
 
-        {!summary ? (
+        {!state.summary ? (
           <div className="text-center py-8">
             <button
               onClick={handleGenerate}
-              disabled={generating}
+              disabled={state.generating}
               className="btn-primary text-lg px-8 py-3"
             >
-              {generating ? (
+              {state.generating ? (
                 <Loader2 className="w-5 h-5 mr-2 inline animate-spin" />
               ) : (
                 <FileText className="w-5 h-5 mr-2 inline" />
@@ -856,32 +877,31 @@ export default function PatientIntake() {
         ) : (
           <div className="space-y-4">
             <div className="bg-white border rounded-xl p-4">
-              {editing ? (
+              {state.editingSummary ? (
                 <textarea
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
+                  value={state.summary}
+                  onChange={(e) => updateState({ summary: e.target.value })}
                   className="w-full h-64 p-3 border rounded-lg font-mono text-sm"
                 />
               ) : (
                 <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
-                  {summary}
+                  {state.summary}
                 </pre>
               )}
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => setEditing(!editing)} className="btn-secondary flex-1">
-                {editing ? (isHi ? 'सहेजें' : 'Save') : (isHi ? 'संपादित करें' : 'Edit')}
+              <button onClick={() => updateState({ editingSummary: !state.editingSummary })} className="btn-secondary flex-1">
+                {state.editingSummary ? (isHi ? 'सहेजें' : 'Save') : (isHi ? 'संपादित करें' : 'Edit')}
               </button>
               <button
                 onClick={async () => {
-                  if (state.encounterId) {
-                    await api.patch(`/encounters/${state.encounterId}/summary`, { summary });
+                  if (!isMockMode && state.encounterId) {
+                    await api.patch(`/encounters/${state.encounterId}/summary`, { summary: state.summary });
                     await api.post(`/encounters/${state.encounterId}/approve`);
-                    toast.success(isHi ? 'अनुमोदित!' : 'Approved!');
-                    setEditing(false);
-                    updateState({ step: 9 });
                   }
+                  toast.success(isHi ? 'अनुमोदित!' : 'Approved!');
+                  updateState({ editingSummary: false, step: 9 });
                 }}
                 className="btn-primary flex-1"
               >
