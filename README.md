@@ -1,272 +1,123 @@
 # AyurCare AI
 
-**Smart India Hackathon 2026 — Problem Statement SIH26047**
+AI-assisted patient case-taking and clinical documentation for AYUSH healthcare.
 
-*Patient Case-Taking Software for Ministry of Ayush*
+AyurCare AI helps patients provide structured health information and gives practitioners a concise case record to review. It was developed for Smart India Hackathon 2026, Problem Statement SIH26047.
 
----
+> AyurCare AI does not diagnose, prescribe, or replace a qualified medical practitioner. All generated summaries and safety alerts require clinical review.
 
-## Overview
+## Main Features
 
-AyurCare AI is a multilingual AI-assisted patient case-taking and clinical documentation platform for AYUSH healthcare settings. It helps collect, organize, summarize, and review clinical information.
+- Patient registration, consent, and longitudinal records
+- English and Hindi patient intake with text or browser voice input
+- Adaptive clinical interviews and offline draft storage
+- Biomedical and Ayurvedic assessments with vitals
+- Rule-based red-flag detection
+- AI-assisted case summaries with a built-in mock provider
+- Document upload with mock OCR extraction
+- Practitioner review, follow-ups, PDF reports, and QR codes
+- Separate doctor, patient, and demonstration administrator experiences
 
-**Core Principle:** Patient speaks → AyurCare structures → Doctor verifies → Better consultation.
+## Technology
 
-**Important:** This software does NOT autonomously diagnose, prescribe, or replace qualified medical practitioners. All AI-generated outputs require physician review.
+| Area | Stack |
+| --- | --- |
+| Web app | React, TypeScript, Vite, Tailwind CSS |
+| API | Node.js, Express, TypeScript, Zod |
+| Data | PostgreSQL, Prisma ORM |
+| Supporting services | Web Speech API, PDFKit, QRCode, mock AI/OCR providers |
 
----
+## Quick Start
 
-## Features
+Requirements: Node.js 18+ and npm.
 
-### P0 — Core Features (Working)
-
-- **Patient Registration** with auto-generated IDs (AYU-2026-XXXX)
-- **Consent Management** with timestamp recording
-- **Multilingual Support** (English, Hindi)
-- **Adaptive Clinical Interview** with voice input fallback
-- **Dual-Lens Clinical Record** (Biomedical + Ayurvedic)
-- **Vitals Recording** (BP, pulse, temperature, weight, height, SpO2)
-- **Red-Flag Safety Engine** with rule-based detection
-- **AI Case Brief Generation** with mock fallback
-- **Document Upload & OCR** with demo extraction
-- **Doctor Review & Approval** workflow
-- **Patient Timeline** with longitudinal records
-- **Follow-up Scheduling**
-- **PDF Export**
-- **Role-Based Access Control** (Admin, Doctor, Student, Patient)
-- **Demo Mode** with sample patient data
-- **Offline Draft Caching** (localStorage)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL with Prisma ORM |
-| Validation | Zod |
-| AI | Provider abstraction with MockAIProvider |
-| Voice | Browser Web Speech API |
-| OCR | Mock extraction with demo fallback |
-| PDF | PDFKit |
-| QR | qrcode library |
-
----
-
-## Prerequisites
-
-- Node.js 18+ and npm
-- PostgreSQL database
-- Git
-
----
-
-## Installation
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd ayurcare-ai
-```
-
-### 2. Install dependencies
+The quickest way to explore the project is mock mode. It runs entirely in the browser and does not require PostgreSQL.
 
 ```bash
 npm install
-cd server && npm install
-cd ../client && npm install
-cd ..
+npm --prefix client install
+npm run dev:client
 ```
 
-### 3. Set up environment variables
+Open `http://localhost:5173`. Mock mode is enabled automatically when `VITE_API_URL` is not defined.
+
+### Demo Accounts
+
+| Portal | Email | Password |
+| --- | --- | --- |
+| Doctor | `doctor@ayurcare.ai` | `demo123` |
+| Patient | `patient@ayurcare.ai` | `demo123` |
+| Admin | `admin@ayurcare.ai` | `demo123` |
+
+These credentials are for demonstration only.
+
+## Full-Stack Setup
+
+Full-stack mode requires a PostgreSQL database.
+
+1. Install all dependencies.
 
 ```bash
-cd server
-cp .env.example .env
+npm install
+npm --prefix client install
+npm --prefix server install
 ```
 
-Edit `.env` with your PostgreSQL credentials:
+2. Create `server/.env` from `server/.env.example` and set at least `DATABASE_URL` and `JWT_SECRET`.
 
-```
-DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/ayurcare_ai"
-JWT_SECRET="your-secret-key-here"
-```
-
-### 4. Set up database
+3. Generate the Prisma client, create the schema, and load demo data.
 
 ```bash
-cd server
-npx prisma generate
-npx prisma migrate dev --name init
-npm run db:seed
+npm --prefix server run db:setup
 ```
 
-### 5. Start development servers
+4. Create `client/.env` so the web app uses the API instead of mock mode.
+
+```env
+VITE_API_URL=http://localhost:3001
+```
+
+5. Start the client and API together.
 
 ```bash
-# From root directory
 npm run dev
 ```
 
-Or start servers separately:
+The web app runs at `http://localhost:5173`; the API runs at `http://localhost:3001/api`. Check API availability at `http://localhost:3001/api/health`.
 
-```bash
-# Terminal 1 - Backend
-cd server
-npm run dev
+## Configuration
 
-# Terminal 2 - Frontend
-cd client
-npm run dev
+The server configuration template is `server/.env.example`. Important settings are:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret used to sign authentication tokens |
+| `APP_URL` | Allowed web-app origin; comma-separate multiple origins |
+| `AI_PROVIDER` | AI provider; defaults to `mock` |
+| `OPENAI_API_KEY` | Required when using the OpenAI provider |
+| `OCR_PROVIDER` | OCR provider; defaults to `mock` |
+| `PORT` | API port; defaults to `3001` |
+
+## Project Structure
+
+```text
+client/             React web application
+server/src/         Express API, services, and tests
+server/prisma/      PostgreSQL data model
+render.yaml         Render API deployment configuration
 ```
 
----
+## Commands
 
-## Demo Credentials
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Run the client and API |
+| `npm run build` | Build both applications |
+| `npm run typecheck` | Type-check the client |
+| `npm run lint` | Lint the client |
+| `npm test` | Run server tests |
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@ayurcare.ai | demo123 |
-| Doctor | doctor@ayurcare.ai | demo123 |
-| Patient | patient@ayurcare.ai | demo123 |
+## Safety
 
----
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/logout` - Logout
-
-### Patients
-- `GET /api/patients` - List patients (supports search, pagination)
-- `GET /api/patients/:id` - Get patient with encounters
-- `POST /api/patients` - Create patient
-- `PATCH /api/patients/:id` - Update patient
-
-### Encounters
-- `POST /api/encounters` - Create encounter
-- `GET /api/encounters/:id` - Get encounter
-- `PATCH /api/encounters/:id` - Update encounter
-- `POST /api/encounters/:id/responses` - Save interview response
-- `GET /api/encounters/:id/next-question` - Get next adaptive question
-- `PUT /api/encounters/:id/biomedical` - Save biomedical assessment
-- `PUT /api/encounters/:id/ayurvedic` - Save ayurvedic assessment
-- `PUT /api/encounters/:id/vitals` - Save vitals
-- `POST /api/encounters/:id/generate-summary` - Generate AI summary
-- `PATCH /api/encounters/:id/summary` - Update summary
-- `POST /api/encounters/:id/approve` - Approve case
-- `GET /api/encounters/:id/red-flags` - Get red flags
-- `POST /api/encounters/:id/check-red-flags` - Check for red flags
-- `PUT /api/encounters/:id/finalize` - Finalize encounter
-
-### Documents
-- `POST /api/documents/upload` - Upload document
-- `GET /api/documents/:id` - Get document
-- `GET /api/documents/patient/:patientId` - Get patient documents
-
-### Follow-ups
-- `GET /api/follow-ups/due` - Get due follow-ups
-- `POST /api/follow-ups` - Create follow-up
-- `PATCH /api/follow-ups/:id` - Update follow-up
-
-### Reports
-- `GET /api/reports/:encounterId/pdf` - Export PDF
-- `GET /api/reports/:encounterId/qr` - Generate QR code
-
----
-
-## Demo Scenario (SIH 3-Minute Presentation)
-
-1. **0:00-0:20** - Explain the problem: Patient history-taking is time-consuming and fragmented
-2. **0:20-1:10** - Patient selects Hindi, begins adaptive voice/touch interview
-3. **1:10-1:40** - Upload old prescription, show OCR extraction
-4. **1:40-2:10** - Show red-flag detection and AI case brief
-5. **2:10-2:40** - Switch to doctor interface, verify and approve
-6. **2:40-3:00** - Show longitudinal timeline, offline support, future ABDM interoperability
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Client (React)                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │Dashboard │ │ Patients │ │ Interview│ │  Review  │      │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
-│                      ↓                                      │
-│              API Service (Axios)                            │
-└─────────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   Server (Express)                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │  Routes  │ │Services  │ │  AI/OCR  │ │Red Flags │      │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
-│                      ↓                                      │
-│              Prisma ORM                                     │
-└─────────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Database (PostgreSQL)                    │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| DATABASE_URL | PostgreSQL connection string | - |
-| JWT_SECRET | Secret for JWT tokens | - |
-| JWT_EXPIRES_IN | Token expiration time | 7d |
-| AI_PROVIDER | AI provider (mock/openai) | mock |
-| OPENAI_API_KEY | OpenAI API key (optional) | - |
-| OCR_PROVIDER | OCR provider (mock) | mock |
-| APP_URL | Frontend URL | http://localhost:5173 |
-| UPLOAD_MAX_MB | Max upload size in MB | 10 |
-| PORT | Server port | 3001 |
-
----
-
-## Safety Disclaimer
-
-AyurCare AI assists with information collection and clinical documentation. It does not provide a final diagnosis or replace professional clinical judgment. All generated summaries and alerts require practitioner review.
-
----
-
-## Fallback Behavior
-
-| Feature | Primary | Fallback |
-|---------|---------|----------|
-| Voice Input | Web Speech API | Text input |
-| AI Summary | OpenAI API | MockAIProvider |
-| OCR | Cloud API | Demo extraction |
-| Network | Online | Local draft caching |
-
----
-
-## Future Enhancements (Post-SIH)
-
-- Full ABDM/FHIR interoperability
-- Real-time SMS/WhatsApp reminders
-- Advanced analytics dashboard
-- Multi-clinic support
-- Mobile application
-- Seasonal/Ritucharya reminders
-
----
-
-## License
-
-This project was developed for Smart India Hackathon 2026.
-
----
-
-**SIH 2026 | Ministry of Ayush | Problem Statement SIH26047**
+This project is a clinical documentation aid, not a medical device or autonomous decision system. Practitioners remain responsible for verifying patient information, generated summaries, red flags, and all clinical decisions.
