@@ -11,6 +11,9 @@ interface Encounter {
   status: string;
   createdAt: string;
   generatedSummary?: string;
+  doctorNote?: string;
+  doctor?: { fullName: string; speciality: string; hospital: string };
+  followUps?: Array<{ id: string; scheduledAt: string; status: string; message?: string; doctorName?: string }>;
   biomedicalAssessment?: Record<string, string>;
   ayurvedicAssessment?: Record<string, string>;
 }
@@ -89,7 +92,7 @@ export default function PatientDashboard() {
                 <h1 className="text-4xl sm:text-5xl font-serif font-bold mt-2">Welcome, {patientName}</h1>
                 <p className="text-emerald-100/60 mt-2">Your submitted information is collected below for you and your doctor.</p>
               </div>
-              <button onClick={() => navigate('/patient-intake')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-emerald-950 hover:bg-emerald-300"><Plus className="w-5 h-5" /> New intake</button>
+              <button onClick={() => navigate('/patient-intake')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-emerald-950 hover:bg-emerald-300"><Plus className="w-5 h-5" /> Update symptoms</button>
             </section>
 
             <section className="grid sm:grid-cols-3 gap-4">
@@ -104,13 +107,15 @@ export default function PatientDashboard() {
                 {encounters.map(encounter => (
                   <article key={encounter.id} className="rounded-2xl border border-white/10 bg-white/[0.07] backdrop-blur p-5 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div><p className="text-xs uppercase tracking-wider text-emerald-300">Chief complaint</p><h3 className="text-xl font-semibold mt-1">{encounter.chiefComplaint || 'General health intake'}</h3><p className="text-sm text-emerald-100/50 mt-2">Submitted {new Date(encounter.createdAt).toLocaleString()}</p></div>
+                      <div><p className="text-xs uppercase tracking-wider text-emerald-300">Chief complaint</p><h3 className="text-xl font-semibold mt-1">{encounter.chiefComplaint || 'General health intake'}</h3><p className="text-sm text-emerald-100/50 mt-2">Submitted {new Date(encounter.createdAt).toLocaleString()}</p>{encounter.doctor && <p className="text-sm text-sky-200 mt-1">Shared with {encounter.doctor.fullName} · {encounter.doctor.speciality}</p>}</div>
                       <span className="self-start rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-200">{encounter.status}</span>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4 mt-5">
                       <div className="rounded-xl bg-black/15 p-4"><p className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4 text-sky-300" /> Medical history</p><p className="text-sm text-emerald-100/60 mt-2">{encounter.biomedicalAssessment?.pastMedicalHistory || 'No past medical history entered'}</p><p className="text-sm text-emerald-100/60 mt-1">Allergies: {encounter.biomedicalAssessment?.allergies || 'None entered'}</p></div>
                       <div className="rounded-xl bg-black/15 p-4"><p className="flex items-center gap-2 text-sm font-medium"><HeartPulse className="w-4 h-4 text-emerald-300" /> Ayurvedic information</p><p className="text-sm text-emerald-100/60 mt-2">Agni: {encounter.ayurvedicAssessment?.agni || 'Not entered'}</p><p className="text-sm text-emerald-100/60 mt-1">Nidra: {encounter.ayurvedicAssessment?.nidra || 'Not entered'}</p></div>
-                    </div>
+                     </div>
+                    {encounter.doctorNote && <div className="mt-4 rounded-xl border border-sky-300/20 bg-sky-400/10 p-4"><p className="text-sm font-medium text-sky-200">Doctor note</p><p className="text-sm text-emerald-50/75 mt-2 whitespace-pre-wrap">{encounter.doctorNote}</p></div>}
+                    {encounter.followUps?.map(followUp => <div key={followUp.id} className="mt-4 rounded-xl border border-amber-300/30 bg-amber-400/10 p-4"><p className="flex items-center gap-2 text-sm font-semibold text-amber-200"><CalendarDays className="w-4 h-4" /> Follow-up appointment</p><p className="text-lg font-medium mt-2">{new Date(followUp.scheduledAt).toLocaleString()}</p>{followUp.message && <p className="text-sm text-emerald-50/70 mt-2">{followUp.message}</p>}<span className="inline-flex mt-3 rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-100">{followUp.status}</span></div>)}
                     {encounter.generatedSummary && <details className="mt-4 rounded-xl bg-black/15 p-4"><summary className="cursor-pointer text-sm font-medium">View submitted summary</summary><pre className="mt-3 whitespace-pre-wrap text-xs text-emerald-100/60 font-sans">{encounter.generatedSummary}</pre></details>}
                   </article>
                 ))}

@@ -9,7 +9,7 @@ interface FollowUp {
   id: string;
   scheduledAt: string;
   status: string;
-  notes?: string;
+  message?: string;
   patient: {
     id: string;
     patientCode: string;
@@ -162,18 +162,20 @@ export default function FollowUps() {
                       </div>
                       <div className="flex items-center mt-1 text-sm text-gray-500">
                         <Calendar className="w-4 h-4 mr-1" />
-                        {new Date(followUp.scheduledAt).toLocaleDateString('en-US', {
+                        {new Date(followUp.scheduledAt).toLocaleString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
                           month: 'long',
-                          day: 'numeric'
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
                         })}
                         {isOverdue(followUp.scheduledAt) && followUp.status === 'SCHEDULED' && (
                           <span className="ml-2 text-red-600 font-medium">Overdue</span>
                         )}
                       </div>
-                      {followUp.notes && (
-                        <p className="mt-2 text-sm text-gray-600">{followUp.notes}</p>
+                      {followUp.message && (
+                        <p className="mt-2 text-sm text-gray-600">{followUp.message}</p>
                       )}
                     </div>
                   </div>

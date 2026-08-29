@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ interface IntakeState {
   age: number;
   gender: string;
   phone: string;
+  doctorId: string;
   chiefComplaint: string;
   chiefComplaintCategory: string;
   responses: Array<{ key: string; text: string; textHi?: string; value: string; source: string }>;
@@ -106,6 +107,7 @@ export default function PatientIntake() {
     age: 0,
     gender: 'MALE',
     phone: '',
+    doctorId: '',
     chiefComplaint: '',
     chiefComplaintCategory: '',
     responses: [],
@@ -120,7 +122,23 @@ export default function PatientIntake() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [textInput, setTextInput] = useState('');
+  const [doctors, setDoctors] = useState<Array<{ id: string; fullName: string; speciality: string; hospital: string; verificationId: string }>>([]);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    api.get('/doctors/verified').then(response => setDoctors(response.data.doctors || [])).catch(() => setDoctors([]));
+    api.get('/patients/me').then(response => {
+      const patient = response.data.records?.[0];
+      if (!patient) return;
+      setState(prev => ({
+        ...prev,
+        fullName: patient.fullName,
+        age: patient.age,
+        gender: patient.gender,
+        phone: patient.phone
+      }));
+    }).catch(() => undefined);
+  }, []);
 
   const lang = state.language;
   const isHi = lang === 'hi';
@@ -255,7 +273,8 @@ export default function PatientIntake() {
   const renderIdentification = () => {
     const isValidAge = state.age >= 1 && state.age <= 150;
     const isValidPhone = /^[6-9]\d{9}$/.test(state.phone.replace(/\D/g, ''));
-    const canProceed = state.fullName.trim().length > 0 && isValidAge && isValidPhone;
+    const doctorIsVerified = doctors.some(doctor => doctor.id === state.doctorId || doctor.verificationId === state.doctorId);
+    const canProceed = state.fullName.trim().length > 0 && isValidAge && isValidPhone && doctorIsVerified;
 
     return (
     <div className="space-y-6">
@@ -337,6 +356,30 @@ export default function PatientIntake() {
               {isHi ? 'कृपया 10 अंकों का मान्य फोन नंबर दर्ज करें' : 'Enter a valid 10-digit phone number starting with 6-9'}
             </p>
           )}
+        </div>
+        <div className="rounded-xl border border-primary-200 bg-primary-50 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {isHi ? 'इस सत्र को डॉक्टर के साथ साझा करें *' : 'Share this session with a doctor *'}
+          </label>
+          <select
+            value={doctors.some(doctor => doctor.id === state.doctorId) ? state.doctorId : ''}
+            onChange={event => updateState({ doctorId: event.target.value })}
+            className="input-field"
+          >
+            <option value="">{isHi ? 'सत्यापित डॉक्टर चुनें' : 'Choose a verified doctor'}</option>
+            {doctors.map(doctor => (
+              <option key={doctor.id} value={doctor.id}>{doctor.fullName} · {doctor.speciality} · {doctor.hospital}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-3 my-3"><div className="h-px bg-primary-200 flex-1" /><span className="text-xs text-gray-500">OR</span><div className="h-px bg-primary-200 flex-1" /></div>
+          <input
+            value={state.doctorId}
+            onChange={event => updateState({ doctorId: event.target.value.trim() })}
+            className="input-field"
+            placeholder={isHi ? 'डॉक्टर आईडी या सत्यापन आईडी दर्ज करें' : 'Enter doctor ID or verification ID'}
+          />
+          <p className="text-xs text-gray-500 mt-2">{isHi ? 'केवल चुने गए डॉक्टर को यह सत्र दिखाई देगा।' : 'Only the selected doctor will be able to see this session.'}</p>
+          {state.doctorId && !doctorIsVerified && <p className="text-xs text-red-600 mt-1">{isHi ? 'मान्य सत्यापित डॉक्टर आईडी दर्ज करें।' : 'Enter a valid verified doctor ID.'}</p>}
         </div>
       </div>
 
@@ -782,6 +825,7 @@ export default function PatientIntake() {
 
   // Step 8: Summary (to be generated via API)
   const renderSummary = () => {
+    const urgentFlags = state.redFlags.filter(flag => flag.level === 'URGENT');
     const handleGenerate = async () => {
       updateState({ generating: true });
       try {
@@ -800,6 +844,7 @@ export default function PatientIntake() {
           visitType: 'INITIAL',
           chiefComplaint: state.chiefComplaint,
           language: state.language,
+          doctorId: state.doctorId,
         });
         const encounterId = encRes.data.encounter.id;
 
@@ -859,7 +904,7 @@ export default function PatientIntake() {
           </h2>
         </div>
 
-        {state.redFlags.length > 0 && state.redFlags[0]?.code !== 'NO_FLAGS' && (
+        {urgentFlags.length > 0 && (
           <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-8 h-8 text-red-500" />

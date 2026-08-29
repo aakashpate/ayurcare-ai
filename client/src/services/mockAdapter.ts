@@ -96,6 +96,7 @@ let DOCTOR_ACCOUNTS: any[] = readStored(DOCTOR_ACCOUNTS_KEY, [
 
 patientCounter += DEMO_PATIENTS.length * 2;
 encounterCounter += Object.keys(DEMO_ENCOUNTERS).length;
+followUpCounter += DEMO_PATIENTS.reduce((total, patient) => total + (patient.followUps?.length || 0), 0);
 
 function persistClinicalData() {
   localStorage.setItem(PATIENTS_KEY, JSON.stringify(DEMO_PATIENTS));
@@ -336,9 +337,39 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     return makeResponse({ user: JSON.parse(raw) });
   }
 
+  // GET /doctors/verified
+  if (method === 'GET' && url === '/doctors/verified') {
+    const doctors = DEMO_DOCTORS
+      .filter(doctor => doctor.status === 'VERIFIED')
+      .map(doctor => ({
+        id: doctor.id,
+        fullName: doctor.fullName,
+        speciality: doctor.speciality,
+        hospital: doctor.hospital,
+        verificationId: doctor.verificationId
+      }));
+    return makeResponse({ doctors });
+  }
+
   // POST /patients
   if (method === 'POST' && url === '/patients') {
     const currentUser = readStored<any>('mock-user', null);
+    const existingPatient = currentUser?.role === 'patient'
+      ? DEMO_PATIENTS.find(p => p.ownerUserId === currentUser.id || p.email === currentUser.email)
+      : null;
+    if (existingPatient) {
+      Object.assign(existingPatient, {
+        fullName: data.fullName,
+        age: data.age,
+        gender: data.gender,
+        phone: data.phone,
+        email: data.email || currentUser.email,
+        consentGiven: true,
+        consentAt: new Date().toISOString()
+      });
+      persistClinicalData();
+      return makeResponse({ patient: existingPatient });
+    }
     const patient = {
       id: genId('pat', ++patientCounter),
       patientCode: genPatientCode(),
@@ -372,6 +403,11 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
         ...p,
         encounters: Object.values(DEMO_ENCOUNTERS)
           .filter((e: any) => e.patientId === p.id)
+          .map((encounter: any) => ({
+            ...encounter,
+            doctor: DEMO_DOCTORS.find(doctor => doctor.id === encounter.doctorId),
+            followUps: (p.followUps || []).filter((followUp: any) => followUp.encounterId === encounter.id)
+          }))
           .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       }));
     return makeResponse({ records });
@@ -382,19 +418,32 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'GET' && patGet) {
     const p = DEMO_PATIENTS.find(x => x.id === patGet[1]);
     if (!p) throw makeError(404, 'Patient not found');
-    const encs = Object.values(DEMO_ENCOUNTERS).filter((e: any) => e.patientId === p.id);
-    return makeResponse({ patient: { ...p, encounters: encs } });
+    const currentUser = readStored<any>('mock-user', null);
+    const encs = Object.values(DEMO_ENCOUNTERS).filter((e: any) =>
+      e.patientId === p.id && (currentUser?.role !== 'doctor' || e.doctorId === currentUser.id)
+    );
+    const encounterIds = new Set(encs.map((encounter: any) => encounter.id));
+    const followUps = (p.followUps || []).filter((followUp: any) => encounterIds.has(followUp.encounterId));
+    return makeResponse({ patient: { ...p, encounters: encs, followUps } });
   }
 
   // GET /patients
   if (method === 'GET' && url === '/patients') {
+    const currentUser = readStored<any>('mock-user', null);
     const search = params?.search || '';
     const page = parseInt(params?.page) || 1;
     const limit = parseInt(params?.limit) || 20;
-    let list = DEMO_PATIENTS.map(p => ({
-      ...p,
-      encounters: Object.values(DEMO_ENCOUNTERS).filter((e: any) => e.patientId === p.id)
-    }));
+    let list = DEMO_PATIENTS.map(p => {
+      const encounters = Object.values(DEMO_ENCOUNTERS).filter((e: any) =>
+        e.patientId === p.id && (currentUser?.role !== 'doctor' || e.doctorId === currentUser.id)
+      );
+      const encounterIds = new Set(encounters.map((encounter: any) => encounter.id));
+      return {
+        ...p,
+        encounters,
+        followUps: (p.followUps || []).filter((followUp: any) => encounterIds.has(followUp.encounterId))
+      };
+    }).filter(p => currentUser?.role !== 'doctor' || p.encounters.length > 0);
     if (search) {
       const s = search.toLowerCase();
       list = list.filter(p => p.fullName.toLowerCase().includes(s) || p.patientCode.toLowerCase().includes(s));
@@ -404,6 +453,10 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
 
   // POST /encounters
   if (method === 'POST' && url === '/encounters') {
+    const doctor = DEMO_DOCTORS.find(d =>
+      d.status === 'VERIFIED' && (d.id === data.doctorId || d.verificationId === data.doctorId)
+    );
+    if (!doctor) throw makeError(400, 'Choose a verified doctor or enter a valid doctor ID.');
     const enc = {
       id: genId('enc', ++encounterCounter),
       patientId: data.patientId,
@@ -412,6 +465,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       duration: data.duration || '',
       severity: data.severity || 5,
       language: data.language || 'en',
+      doctorId: doctor.id,
       status: 'IN_PROGRESS',
       generatedSummary: null,
       summaryApproved: false,
@@ -506,6 +560,17 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     if (!enc) throw makeError(404, 'Encounter not found');
     const pat = DEMO_PATIENTS.find(p => p.id === enc.patientId);
     return makeResponse({ encounter: { ...enc, patient: pat ? { id: pat.id, fullName: pat.fullName, patientCode: pat.patientCode, age: pat.age, gender: pat.gender, phone: pat.phone, email: pat.email } : null } });
+  }
+
+  // PATCH /encounters/:id
+  if (method === 'PATCH' && encGet) {
+    const enc = DEMO_ENCOUNTERS[encGet[1]];
+    if (!enc) throw makeError(404, 'Encounter not found');
+    const currentUser = readStored<any>('mock-user', null);
+    if (currentUser?.role !== 'doctor' || enc.doctorId !== currentUser.id) throw makeError(403, 'Not authorized for this patient session.');
+    if (typeof data.doctorNote === 'string') enc.doctorNote = data.doctorNote;
+    persistClinicalData();
+    return makeResponse({ encounter: enc });
   }
 
   // POST /encounters/:id/generate-summary
@@ -641,22 +706,59 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     return makeResponse({ extraction: { text: '[DEMO OCR EXTRACTION] This is simulated extraction from the uploaded document.\n\nIn a production environment, this would contain the actual text extracted using OCR technology.', structuredData: { medications: ['Triphala Churna', 'Ashwagandha'], dosage: 'As directed', practitioner: 'Dr. Sharma' }, confidence: 0.92, isMock: true } });
   }
 
+  // POST /follow-ups
+  if (method === 'POST' && url === '/follow-ups') {
+    const currentUser = readStored<any>('mock-user', null);
+    const patient = DEMO_PATIENTS.find(p => p.id === data.patientId);
+    const encounter = DEMO_ENCOUNTERS[data.encounterId];
+    if (!patient || !encounter || encounter.patientId !== patient.id) throw makeError(400, 'Invalid patient session.');
+    if (currentUser?.role !== 'doctor' || encounter.doctorId !== currentUser.id) throw makeError(403, 'Not authorized for this patient session.');
+    const followUp = {
+      id: genId('fu', ++followUpCounter),
+      patientId: patient.id,
+      encounterId: encounter.id,
+      doctorId: currentUser.id,
+      doctorName: currentUser.name,
+      scheduledAt: data.scheduledAt,
+      message: data.message || '',
+      status: 'SCHEDULED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    patient.followUps = patient.followUps || [];
+    patient.followUps.push(followUp);
+    persistClinicalData();
+    return makeResponse({ followUp }, 201);
+  }
+
   // GET /follow-ups/due
   if (method === 'GET' && url === '/follow-ups/due') {
-    const fups = DEMO_PATIENTS.slice(0, 2).map((p, i) => ({
-      id: genId('fu', ++followUpCounter),
-      scheduledAt: new Date(Date.now() + (i + 1) * 86400000).toISOString(),
-      status: 'SCHEDULED',
-      notes: i === 0 ? 'Follow-up for initial consultation' : 'Vitals review',
-      patient: { id: p.id, patientCode: p.patientCode, fullName: p.fullName, phone: p.phone, age: p.age, gender: p.gender }
-    }));
+    const currentUser = readStored<any>('mock-user', null);
+    const fups = DEMO_PATIENTS.flatMap(patient => (patient.followUps || [])
+      .filter((followUp: any) => currentUser?.role !== 'doctor' || followUp.doctorId === currentUser.id)
+      .map((followUp: any) => ({
+        ...followUp,
+        patient: { id: patient.id, patientCode: patient.patientCode, fullName: patient.fullName, phone: patient.phone, age: patient.age, gender: patient.gender }
+      })));
     return makeResponse({ followUps: fups });
   }
 
   // PATCH /follow-ups/:id
   const fuMatch = url.match(/^\/follow-ups\/([^/]+)$/);
   if (method === 'PATCH' && fuMatch) {
-    return makeResponse({ success: true });
+    const currentUser = readStored<any>('mock-user', null);
+    for (const patient of DEMO_PATIENTS) {
+      const followUp = (patient.followUps || []).find((item: any) => item.id === fuMatch[1]);
+      if (!followUp) continue;
+      if (currentUser?.role !== 'doctor' || followUp.doctorId !== currentUser.id) throw makeError(403, 'Not authorized to change this follow-up.');
+      if (data.scheduledAt) followUp.scheduledAt = data.scheduledAt;
+      if (typeof data.message === 'string') followUp.message = data.message;
+      if (data.status) followUp.status = data.status;
+      followUp.updatedAt = new Date().toISOString();
+      persistClinicalData();
+      return makeResponse({ success: true, followUp });
+    }
+    throw makeError(404, 'Follow-up not found');
   }
 
   // GET /reports/:id/pdf

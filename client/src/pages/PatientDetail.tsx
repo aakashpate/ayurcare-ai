@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import QRCode from 'qrcode';
+import toast from 'react-hot-toast';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -80,6 +81,15 @@ interface Encounter {
     level: string;
     reason: string;
   }>;
+  doctorNote?: string;
+}
+
+interface FollowUp {
+  id: string;
+  encounterId: string;
+  scheduledAt: string;
+  status: string;
+  message?: string;
 }
 
 interface Patient {
@@ -101,12 +111,7 @@ interface Patient {
     filename: string;
     uploadedAt: string;
   }>;
-  followUps: Array<{
-    id: string;
-    scheduledAt: string;
-    status: string;
-    notes?: string;
-  }>;
+  followUps: FollowUp[];
 }
 
 export default function PatientDetail() {
@@ -116,6 +121,9 @@ export default function PatientDetail() {
   const [expandedEncounter, setExpandedEncounter] = useState<string | null>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [followUpDrafts, setFollowUpDrafts] = useState<Record<string, { date: string; time: string; message: string }>>({});
+  const [savingSession, setSavingSession] = useState<string | null>(null);
 
   const generateQR = useCallback(async () => {
     if (!patient) return;
@@ -183,7 +191,55 @@ export default function PatientDetail() {
   };
 
   const toggleEncounter = (encounterId: string) => {
+    const encounter = patient?.encounters.find(item => item.id === encounterId);
+    const followUp = patient?.followUps.find(item => item.encounterId === encounterId);
+    setNoteDrafts(prev => ({ ...prev, [encounterId]: prev[encounterId] ?? encounter?.doctorNote ?? '' }));
+    if (!followUpDrafts[encounterId]) {
+      const scheduled = followUp ? new Date(followUp.scheduledAt) : null;
+      setFollowUpDrafts(prev => ({
+        ...prev,
+        [encounterId]: {
+          date: scheduled ? scheduled.toISOString().slice(0, 10) : '',
+          time: scheduled ? scheduled.toTimeString().slice(0, 5) : '',
+          message: followUp?.message || ''
+        }
+      }));
+    }
     setExpandedEncounter(expandedEncounter === encounterId ? null : encounterId);
+  };
+
+  const saveDoctorNote = async (encounterId: string) => {
+    setSavingSession(encounterId);
+    try {
+      const response = await api.patch(`/encounters/${encounterId}`, { doctorNote: noteDrafts[encounterId] || '' });
+      setPatient(prev => prev ? { ...prev, encounters: prev.encounters.map(item => item.id === encounterId ? { ...item, doctorNote: response.data.encounter.doctorNote } : item) } : prev);
+      toast.success('Doctor note saved');
+    } catch {
+      toast.error('Could not save doctor note');
+    } finally {
+      setSavingSession(null);
+    }
+  };
+
+  const saveFollowUp = async (encounterId: string) => {
+    if (!patient) return;
+    const draft = followUpDrafts[encounterId];
+    if (!draft?.date || !draft.time) return toast.error('Choose both a follow-up date and time');
+    setSavingSession(encounterId);
+    try {
+      const existing = patient.followUps.find(item => item.encounterId === encounterId);
+      const payload = { scheduledAt: new Date(`${draft.date}T${draft.time}`).toISOString(), message: draft.message };
+      const response = existing
+        ? await api.patch(`/follow-ups/${existing.id}`, payload)
+        : await api.post('/follow-ups', { ...payload, patientId: patient.id, encounterId });
+      const saved = response.data.followUp;
+      setPatient(prev => prev ? { ...prev, followUps: existing ? prev.followUps.map(item => item.id === saved.id ? saved : item) : [...prev.followUps, saved] } : prev);
+      toast.success(existing ? 'Follow-up updated and patient notified' : 'Follow-up scheduled and patient notified');
+    } catch {
+      toast.error('Could not save follow-up');
+    } finally {
+      setSavingSession(null);
+    }
   };
 
   if (loading) {
@@ -573,6 +629,32 @@ export default function PatientDetail() {
                           </div>
                         )}
 
+                        {/* Doctor note and patient follow-up */}
+                        <div className="grid lg:grid-cols-2 gap-4">
+                          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                            <h4 className="font-medium text-blue-900">Doctor note for this session</h4>
+                            <p className="text-xs text-blue-700 mt-1">This note will be visible to the patient.</p>
+                            <textarea
+                              value={noteDrafts[encounter.id] ?? encounter.doctorNote ?? ''}
+                              onChange={event => setNoteDrafts(prev => ({ ...prev, [encounter.id]: event.target.value }))}
+                              className="mt-3 w-full min-h-28 rounded-lg border border-blue-200 bg-white p-3 text-sm outline-none focus:border-blue-500"
+                              placeholder="Add advice, observations, or instructions..."
+                            />
+                            <button onClick={() => saveDoctorNote(encounter.id)} disabled={savingSession === encounter.id} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">Save doctor note</button>
+                          </div>
+
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <h4 className="font-medium text-amber-900">Schedule or change follow-up</h4>
+                            <p className="text-xs text-amber-700 mt-1">The selected date, time, and message will appear in the patient portal.</p>
+                            <div className="grid grid-cols-2 gap-3 mt-3">
+                              <input type="date" value={followUpDrafts[encounter.id]?.date || ''} onChange={event => setFollowUpDrafts(prev => ({ ...prev, [encounter.id]: { date: event.target.value, time: prev[encounter.id]?.time || '', message: prev[encounter.id]?.message || '' } }))} className="rounded-lg border border-amber-200 bg-white p-2.5 text-sm" />
+                              <input type="time" value={followUpDrafts[encounter.id]?.time || ''} onChange={event => setFollowUpDrafts(prev => ({ ...prev, [encounter.id]: { date: prev[encounter.id]?.date || '', time: event.target.value, message: prev[encounter.id]?.message || '' } }))} className="rounded-lg border border-amber-200 bg-white p-2.5 text-sm" />
+                            </div>
+                            <textarea value={followUpDrafts[encounter.id]?.message || ''} onChange={event => setFollowUpDrafts(prev => ({ ...prev, [encounter.id]: { date: prev[encounter.id]?.date || '', time: prev[encounter.id]?.time || '', message: event.target.value } }))} className="mt-3 w-full min-h-20 rounded-lg border border-amber-200 bg-white p-3 text-sm" placeholder="Message for the patient..." />
+                            <button onClick={() => saveFollowUp(encounter.id)} disabled={savingSession === encounter.id} className="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50">Save follow-up and notify patient</button>
+                          </div>
+                        </div>
+
                         {/* Action Links */}
                         <div className="flex gap-2">
                           <Link 
@@ -612,10 +694,10 @@ export default function PatientDetail() {
               >
                 <div>
                   <p className="font-medium">
-                    {new Date(followUp.scheduledAt).toLocaleDateString()}
+                    {new Date(followUp.scheduledAt).toLocaleString()}
                   </p>
-                  {followUp.notes && (
-                    <p className="text-sm text-gray-500">{followUp.notes}</p>
+                  {followUp.message && (
+                    <p className="text-sm text-gray-500">{followUp.message}</p>
                   )}
                 </div>
                 <span className={`badge ${
