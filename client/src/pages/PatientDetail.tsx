@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
+import QRCode from 'qrcode';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -17,7 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  Heart
+  Heart,
+  X,
+  Download
 } from 'lucide-react';
 
 interface InterviewResponse {
@@ -111,6 +114,39 @@ export default function PatientDetail() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedEncounter, setExpandedEncounter] = useState<string | null>(null);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  const generateQR = useCallback(async () => {
+    if (!patient) return;
+    const latestEncounter = patient.encounters?.[0];
+    const payload = {
+      id: patient.id,
+      patientCode: patient.patientCode,
+      name: patient.fullName,
+      age: patient.age,
+      gender: patient.gender,
+      phone: patient.phone,
+      email: patient.email,
+      chiefComplaint: latestEncounter?.chiefComplaint || '',
+      visitDate: latestEncounter?.createdAt || patient.createdAt,
+      generatedAt: new Date().toISOString()
+    };
+    const dataUrl = await QRCode.toDataURL(JSON.stringify(payload), {
+      width: 300,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+    setQrDataUrl(dataUrl);
+  }, [patient]);
+
+  const handleDownloadQR = () => {
+    if (!qrDataUrl) return;
+    const link = document.createElement('a');
+    link.download = `patient-qr-${patient?.patientCode || 'unknown'}.png`;
+    link.href = qrDataUrl;
+    link.click();
+  };
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -185,7 +221,10 @@ export default function PatientDetail() {
           </div>
         </div>
         <div className="mt-4 sm:mt-0 flex gap-2">
-          <button className="btn-secondary flex items-center">
+          <button
+            onClick={() => { setQrModalOpen(true); generateQR(); }}
+            className="btn-secondary flex items-center"
+          >
             <QrCode className="w-4 h-4 mr-2" />
             QR Code
           </button>
@@ -682,6 +721,34 @@ export default function PatientDetail() {
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {qrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setQrModalOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white">Patient QR Code</h3>
+              <button onClick={() => setQrModalOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            {qrDataUrl ? (
+              <div className="flex flex-col items-center gap-4">
+                <img src={qrDataUrl} alt="Patient QR Code" className="rounded-lg border" />
+                <p className="text-xs text-gray-500 text-center">
+                  Scan to view: {patient?.fullName} ({patient?.patientCode})
+                </p>
+                <button onClick={handleDownloadQR} className="btn-primary flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Download QR
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-40 text-gray-400">Generating...</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

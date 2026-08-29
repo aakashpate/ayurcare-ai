@@ -37,11 +37,18 @@ export default function Login() {
     setLoading(true);
     
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const user = await login(email, password);
+      if (user.role === 'admin') {
+        throw new Error('ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL');
+      }
+      navigate(user.role === 'patient' ? '/patient-dashboard' : '/dashboard');
       toast.success(t('auth.loginSuccess') || 'Login successful!');
     } catch (error) {
-      toast.error(t('auth.invalidCredentials'));
+      toast.error(
+        error instanceof Error && error.message === 'ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL'
+          ? 'Admin access uses the dedicated admin portal.'
+          : t('auth.invalidCredentials')
+      );
     } finally {
       setLoading(false);
     }
@@ -53,11 +60,18 @@ export default function Login() {
     setLoading(true);
     
     try {
-      await login(demoEmail, 'demo123');
-      navigate('/dashboard');
+      const user = await login(demoEmail, 'demo123');
+      if (user.role === 'admin') {
+        throw new Error('ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL');
+      }
+      navigate(user.role === 'patient' ? '/patient-dashboard' : '/dashboard');
       toast.success(t('auth.loginSuccess') || 'Demo login successful!');
     } catch (error) {
-      toast.error(t('auth.invalidCredentials'));
+      toast.error(
+        error instanceof Error && error.message === 'ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL'
+          ? 'Admin access uses the dedicated admin portal.'
+          : t('auth.invalidCredentials')
+      );
     } finally {
       setLoading(false);
     }
@@ -155,7 +169,7 @@ export default function Login() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  {lang === 'hi' ? 'डेमो खाते' : 'Demo Accounts'}
+                  {lang === 'hi' ? 'डेमो खाता' : 'Demo Account'}
                 </span>
               </div>
             </div>
@@ -163,17 +177,17 @@ export default function Login() {
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleDemoLogin('admin@ayurcare.ai')}
-                className="w-full btn-secondary text-sm"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
                 onClick={() => handleDemoLogin('doctor@ayurcare.ai')}
                 className="w-full btn-secondary text-sm"
               >
-                Doctor
+                Doctor Demo
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('patient@ayurcare.ai')}
+                className="w-full btn-secondary text-sm"
+              >
+                Patient Demo
               </button>
             </div>
           </div>
@@ -183,6 +197,9 @@ export default function Login() {
           </div>
 
           <div className="mt-4 text-center">
+            <Link to="/admin-login" className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 block mb-2">
+              Admin access
+            </Link>
             <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
               ← {lang === 'hi' ? 'होम पेज' : 'Back to Home'}
             </Link>

@@ -19,6 +19,48 @@ function delay(ms = 150) {
 const DEMO_PATIENTS: any[] = [];
 const DEMO_ENCOUNTERS: Record<string, any> = {};
 
+const DEMO_DOCTORS: any[] = [
+  {
+    id: 'DOC-001',
+    fullName: 'Dr. Priya Sharma',
+    email: 'dr.sharma@ayurcare.demo',
+    licenseNo: 'AYU-2024-001',
+    speciality: 'Kayachikitsa',
+    hospital: 'AyurCare Central Hospital',
+    verificationId: 'VER-AYU-2024-001',
+    verified: true,
+    verifiedAt: '2024-01-15T10:00:00Z',
+    phone: '9876543210',
+    createdAt: '2024-01-10T08:00:00Z'
+  },
+  {
+    id: 'DOC-002',
+    fullName: 'Dr. Rahul Verma',
+    email: 'dr.verma@ayurcare.demo',
+    licenseNo: 'AYU-2024-002',
+    speciality: 'Panchakarma',
+    hospital: 'AyurCare Central Hospital',
+    verificationId: 'VER-AYU-2024-002',
+    verified: false,
+    verifiedAt: null,
+    phone: '9876543211',
+    createdAt: '2024-02-01T08:00:00Z'
+  },
+  {
+    id: 'DOC-003',
+    fullName: 'Dr. Anita Desai',
+    email: 'dr.desai@ayurcare.demo',
+    licenseNo: 'AYU-2024-003',
+    speciality: 'Shalya Tantra',
+    hospital: 'Community Health Center',
+    verificationId: 'VER-AYU-2024-003',
+    verified: false,
+    verifiedAt: null,
+    phone: '9876543212',
+    createdAt: '2024-02-15T08:00:00Z'
+  }
+];
+
 interface MockQuestion {
   key: string;
   text: string;
@@ -353,6 +395,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'POST' && gsMatch) {
     const enc = DEMO_ENCOUNTERS[gsMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
+    const pat = DEMO_PATIENTS.find(p => p.id === enc.patientId);
     const resps = enc.interviewResponses.map((r: any) => `- ${r.questionText}: ${r.response}`).join('\n');
     
     const flags = generateMockRedFlags({
@@ -368,9 +411,10 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     sections.push(`## AI-GENERATED CLINICAL SUMMARY`);
     sections.push(`**REVIEW REQUIRED BY QUALIFIED PRACTITIONER**\n`);
     sections.push(`### Patient Information`);
-    sections.push(`- Name: ${enc.patient?.fullName || 'Unknown'}`);
-    sections.push(`- Age: ${enc.patient?.age || 'Unknown'} years`);
-    sections.push(`- Gender: ${enc.patient?.gender || 'Unknown'}`);
+    sections.push(`- Name: ${pat?.fullName || 'Unknown'}`);
+    sections.push(`- Age: ${pat?.age || 'Unknown'} years`);
+    sections.push(`- Gender: ${pat?.gender || 'Unknown'}`);
+    sections.push(`- Patient ID: ${pat?.patientCode || 'N/A'}`);
     sections.push(`- Visit Date: ${new Date().toLocaleDateString()}\n`);
     
     if (enc.chiefComplaint) {
@@ -394,6 +438,32 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       if (v.pulse) sections.push(`Pulse: ${v.pulse} bpm`);
       if (v.temperature) sections.push(`Temperature: ${v.temperature}°C`);
       if (v.spo2) sections.push(`SpO2: ${v.spo2}%`);
+      if (v.weight) sections.push(`Weight: ${v.weight} kg`);
+      if (v.height) sections.push(`Height: ${v.height} cm`);
+      sections.push('');
+    }
+    
+    if (enc.biomedicalAssessment) {
+      sections.push(`### Biomedical Assessment`);
+      const b = enc.biomedicalAssessment;
+      if (b.pastMedicalHistory) sections.push(`Past Medical: ${b.pastMedicalHistory}`);
+      if (b.pastSurgicalHistory) sections.push(`Past Surgical: ${b.pastSurgicalHistory}`);
+      if (b.medications) sections.push(`Medications: ${b.medications}`);
+      if (b.allergies) sections.push(`Allergies: ${b.allergies}`);
+      if (b.familyHistory) sections.push(`Family History: ${b.familyHistory}`);
+      if (b.personalHistory) sections.push(`Personal History: ${b.personalHistory}`);
+      sections.push('');
+    }
+    
+    if (enc.ayurvedicAssessment) {
+      sections.push(`### Ayurvedic Assessment`);
+      const a = enc.ayurvedicAssessment;
+      if (a.agni) sections.push(`Agni: ${a.agni}`);
+      if (a.ahara) sections.push(`Ahara: ${a.ahara}`);
+      if (a.nidra) sections.push(`Nidra: ${a.nidra}`);
+      if (a.exercise) sections.push(`Vyayama Shakti: ${a.exercise}`);
+      if (a.stress) sections.push(`Sattva: ${a.stress}`);
+      if (a.bmi) sections.push(`Samhanana: ${a.bmi}`);
       sections.push('');
     }
     
@@ -473,6 +543,36 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'GET' && pdfMatch) {
     const blob = new Blob(['AyurCare AI Clinical Report'], { type: 'application/pdf' });
     return makeResponse(blob);
+  }
+
+  // GET /admin/doctors
+  if (method === 'GET' && url === '/admin/doctors') {
+    return makeResponse({ doctors: DEMO_DOCTORS });
+  }
+
+  // GET /admin/doctors/pending
+  if (method === 'GET' && url === '/admin/doctors/pending') {
+    const pending = DEMO_DOCTORS.filter(d => !d.verified);
+    return makeResponse({ doctors: pending });
+  }
+
+  // PATCH /admin/doctors/:id/verify
+  const verifyMatch = url.match(/^\/admin\/doctors\/([^/]+)\/verify$/);
+  if (method === 'PATCH' && verifyMatch) {
+    const doc = DEMO_DOCTORS.find(d => d.id === verifyMatch[1]);
+    if (!doc) throw makeError(404, 'Doctor not found');
+    doc.verified = true;
+    doc.verifiedAt = new Date().toISOString();
+    return makeResponse({ success: true, doctor: doc });
+  }
+
+  // PATCH /admin/doctors/:id/reject
+  const rejectMatch = url.match(/^\/admin\/doctors\/([^/]+)\/reject$/);
+  if (method === 'PATCH' && rejectMatch) {
+    const docIdx = DEMO_DOCTORS.findIndex(d => d.id === rejectMatch[1]);
+    if (docIdx === -1) throw makeError(404, 'Doctor not found');
+    DEMO_DOCTORS.splice(docIdx, 1);
+    return makeResponse({ success: true });
   }
 
   throw makeError(404, 'Mock endpoint not found');

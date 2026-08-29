@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import PatientIntake from './pages/PatientIntake';
+import PatientDashboard from './pages/PatientDashboard';
 import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import PatientDetail from './pages/PatientDetail';
@@ -15,8 +16,10 @@ import Documents from './pages/Documents';
 import Review from './pages/Review';
 import FollowUps from './pages/FollowUps';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
+import AdminLogin from './pages/AdminLogin';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function RoleRoute({ children, role, withLayout = false }: { children: React.ReactNode; role: 'doctor' | 'patient'; withLayout?: boolean }) {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -30,8 +33,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
-  return <Layout>{children}</Layout>;
+
+  if (user.role !== role) {
+    const destination = user.role === 'patient'
+      ? '/patient-dashboard'
+      : user.role === 'doctor'
+        ? '/dashboard'
+        : '/admin-login';
+    return <Navigate to={destination} replace />;
+  }
+
+  return withLayout ? <Layout>{children}</Layout> : <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const isAdmin = localStorage.getItem('ayurcare-admin') === 'true';
+
+  if (!isAdmin) {
+    return <Navigate to="/admin-login" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function App() {
@@ -42,56 +64,67 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/patient-intake" element={<PatientIntake />} />
+          <Route path="/patient-dashboard" element={
+            <RoleRoute role="patient">
+              <PatientDashboard />
+            </RoleRoute>
+          } />
           <Route path="/dashboard" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Dashboard />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/patients" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Patients />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/patients/:id" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <PatientDetail />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/new-case" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <NewCase />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/interview/:encounterId" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Interview />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/vitals/:encounterId" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Vitals />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/documents/:encounterId" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Documents />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/review/:encounterId" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Review />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/follow-ups" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <FollowUps />
-            </ProtectedRoute>
+            </RoleRoute>
           } />
           <Route path="/settings" element={
-            <ProtectedRoute>
+            <RoleRoute role="doctor" withLayout>
               <Settings />
-            </ProtectedRoute>
+            </RoleRoute>
+          } />
+          <Route path="/admin" element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
           } />
         </Routes>
       </Router>

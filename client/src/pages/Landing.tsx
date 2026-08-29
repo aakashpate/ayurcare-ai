@@ -121,6 +121,33 @@ export default function Landing() {
             </div>
           </button>
 
+          {/* Admin Mode */}
+          <button
+            onClick={() => navigate('/admin-login')}
+            className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 border-red-200 dark:border-red-900/60 hover:border-red-400 dark:hover:border-red-500 hover:shadow-xl transition-all p-8 text-left group"
+          >
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 rounded-2xl flex items-center justify-center group-hover:bg-red-200 dark:group-hover:bg-red-800/50 transition-colors">
+                <Shield className="w-8 h-8 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-1">
+                  {lang === 'hi' ? 'एडमिन' : 'Admin'}
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {lang === 'hi'
+                    ? 'केवल डॉक्टर पंजीकरण और सत्यापन के लिए सुरक्षित प्रवेश'
+                    : 'Secure access for doctor registration review and verification'}
+                </p>
+              </div>
+              <div className="text-red-400 group-hover:text-red-600 dark:group-hover:text-red-300 transition-colors">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+
           {/* Trust Indicators */}
           <div className="flex items-center justify-center gap-6 pt-4 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">

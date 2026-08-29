@@ -12,7 +12,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -33,16 +33,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMockMode) {
             const mockUser = localStorage.getItem('mock-user');
             if (mockUser) {
-              setUser(JSON.parse(mockUser));
-              setToken(storedToken);
+              const storedUser = JSON.parse(mockUser) as User;
+              if (storedUser.role === 'admin') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('mock-user');
+                setToken(null);
+              } else {
+                setUser(storedUser);
+                setToken(storedToken);
+              }
             } else {
               localStorage.removeItem('token');
             }
           } else {
             api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
             const response = await api.get('/auth/me');
-            setUser(response.data.user);
-            setToken(storedToken);
+            if (response.data.user.role === 'admin') {
+              localStorage.removeItem('token');
+              delete api.defaults.headers.common['Authorization'];
+              setToken(null);
+            } else {
+              setUser(response.data.user);
+              setToken(storedToken);
+            }
           }
         } catch {
           localStorage.removeItem('token');
@@ -60,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
     const { token: newToken, user: userData } = response.data;
+
+    if (userData.role === 'admin') {
+      throw new Error('ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL');
+    }
     
     localStorage.setItem('token', newToken);
     if (isMockMode) {
@@ -70,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setToken(newToken);
     setUser(userData);
+    return userData;
   };
 
   const logout = () => {

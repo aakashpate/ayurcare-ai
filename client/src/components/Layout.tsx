@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isMockMode } from '../services/api';
-import { 
+import {
   LayoutDashboard, 
   UserPlus, 
   Users, 
