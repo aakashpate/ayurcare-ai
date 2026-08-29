@@ -9,12 +9,16 @@
   color-scheme: light;
   color: #1a1a1a;
   background-color: #fefdfb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark {
   color-scheme: dark;
-  color: #f3f4f6;
+  color: #f9fafb;
   background-color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -36,7 +40,7 @@ body {
   }
 
   .dark .btn-secondary {
-    @apply bg-gray-700 text-gray-300 hover:bg-gray-600;
+    @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
   }
 
   .btn-danger {
@@ -48,7 +52,7 @@ body {
   }
 
   .dark .input-field {
-    @apply bg-gray-800 border-gray-600 text-white;
+    @apply bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400;
   }
 
   .card {
@@ -67,13 +71,50 @@ body {
     @apply bg-red-100 text-red-800;
   }
 
+  .dark .badge-urgent {
+    @apply bg-red-900/50 text-red-200;
+  }
+
   .badge-attention {
     @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .dark .badge-attention {
+    @apply bg-yellow-900/50 text-yellow-200;
   }
 
   .badge-normal {
     @apply bg-green-100 text-green-800;
   }
+
+  .dark .badge-normal {
+    @apply bg-green-900/50 text-green-200;
+  }
+}
+
+/* Global dark mode text improvements */
+.dark .text-gray-900 {
+  color: #f9fafb;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #f9fafb;
 }
 
 /* Custom scrollbar */

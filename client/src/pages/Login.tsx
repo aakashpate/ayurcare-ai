@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { t } from '../i18n';
+import { t, setLanguage, getLanguage } from '../i18n';
 import toast from 'react-hot-toast';
 import { Component as Background } from '@/components/ui/background-snippets';
+import { Globe, Sun, Moon } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [lang, setLang] = useState(getLanguage());
+  const [dark, setDark] = useState(() => {
+    return localStorage.getItem('ayurcare-dark') === 'true';
+  });
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('ayurcare-dark', String(dark));
+  }, [dark]);
+
+  const handleLanguageToggle = () => {
+    const newLang = lang === 'en' ? 'hi' : 'en';
+    setLanguage(newLang);
+    setLang(newLang);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +39,7 @@ export default function Login() {
     try {
       await login(email, password);
       navigate('/dashboard');
-      toast.success('Login successful!');
+      toast.success(t('auth.loginSuccess') || 'Login successful!');
     } catch (error) {
       toast.error(t('auth.invalidCredentials'));
     } finally {
@@ -35,7 +55,7 @@ export default function Login() {
     try {
       await login(demoEmail, 'demo123');
       navigate('/dashboard');
-      toast.success('Demo login successful!');
+      toast.success(t('auth.loginSuccess') || 'Demo login successful!');
     } catch (error) {
       toast.error(t('auth.invalidCredentials'));
     } finally {
@@ -44,27 +64,45 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative bg-white dark:bg-gray-900 transition-colors">
       <Background />
+
+      {/* Top Controls */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <button
+          onClick={handleLanguageToggle}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+        >
+          <Globe className="w-4 h-4" />
+          {lang === 'en' ? 'हिन्दी' : 'English'}
+        </button>
+        <button
+          onClick={() => setDark(!dark)}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+        >
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </div>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center">
+          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-2xl">AC</span>
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-serif font-bold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-serif font-bold text-gray-900 dark:text-white">
           {t('auth.loginTitle')}
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           {t('auth.loginSubtitle')}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('auth.email')}
               </label>
               <div className="mt-1">
@@ -82,7 +120,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('auth.password')}
               </label>
               <div className="mt-1">
@@ -113,10 +151,12 @@ export default function Login() {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Accounts</span>
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  {lang === 'hi' ? 'डेमो खाते' : 'Demo Accounts'}
+                </span>
               </div>
             </div>
 
@@ -138,13 +178,13 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="mt-4 text-center text-xs text-gray-500">
-            <p>Demo password: demo123</p>
+          <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+            <p>{lang === 'hi' ? 'डेमो पासवर्ड: demo123' : 'Demo password: demo123'}</p>
           </div>
 
           <div className="mt-4 text-center">
-            <Link to="/" className="text-sm text-primary-600 hover:text-primary-700">
-              ← Back to Home
+            <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
+              ← {lang === 'hi' ? 'होम पेज' : 'Back to Home'}
             </Link>
           </div>
         </div>
