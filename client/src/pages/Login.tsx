@@ -10,7 +10,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const [lang, setLang] = useState(getLanguage());
   const [dark, setDark] = useState(() => {
@@ -38,16 +38,22 @@ export default function Login() {
     
     try {
       const user = await login(email, password);
-      if (user.role === 'admin') {
-        throw new Error('ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL');
+      if (user.role !== 'doctor') {
+        logout();
+        throw new Error('DOCTOR_LOGIN_ONLY');
       }
-      navigate(user.role === 'patient' ? '/patient-dashboard' : '/dashboard');
+      navigate('/dashboard');
       toast.success(t('auth.loginSuccess') || 'Login successful!');
-    } catch (error) {
+    } catch (error: any) {
+      const code = error.response?.data?.code || error.message;
       toast.error(
-        error instanceof Error && error.message === 'ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL'
-          ? 'Admin access uses the dedicated admin portal.'
-          : t('auth.invalidCredentials')
+        code === 'DOCTOR_PENDING_VERIFICATION'
+          ? 'Your application is waiting for admin verification.'
+          : code === 'DOCTOR_APPLICATION_REJECTED'
+            ? 'Your doctor application was not approved. Contact AyurCare support.'
+            : code === 'DOCTOR_LOGIN_ONLY'
+              ? 'This sign-in page is for doctors only.'
+              : t('auth.invalidCredentials')
       );
     } finally {
       setLoading(false);
@@ -61,17 +67,14 @@ export default function Login() {
     
     try {
       const user = await login(demoEmail, 'demo123');
-      if (user.role === 'admin') {
-        throw new Error('ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL');
+      if (user.role !== 'doctor') {
+        logout();
+        throw new Error('DOCTOR_LOGIN_ONLY');
       }
-      navigate(user.role === 'patient' ? '/patient-dashboard' : '/dashboard');
+      navigate('/dashboard');
       toast.success(t('auth.loginSuccess') || 'Demo login successful!');
-    } catch (error) {
-      toast.error(
-        error instanceof Error && error.message === 'ADMIN_ACCESS_REQUIRES_ADMIN_PORTAL'
-          ? 'Admin access uses the dedicated admin portal.'
-          : t('auth.invalidCredentials')
-      );
+    } catch {
+      toast.error(t('auth.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -105,10 +108,10 @@ export default function Login() {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-serif font-bold text-gray-900 dark:text-white">
-          {t('auth.loginTitle')}
+          Doctor sign in
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          {t('auth.loginSubtitle')}
+          Access the clinical dashboard with your verified practitioner account
         </p>
       </div>
 
@@ -174,20 +177,13 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={() => handleDemoLogin('doctor@ayurcare.ai')}
                 className="w-full btn-secondary text-sm"
               >
                 Doctor Demo
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('patient@ayurcare.ai')}
-                className="w-full btn-secondary text-sm"
-              >
-                Patient Demo
               </button>
             </div>
           </div>
@@ -197,8 +193,8 @@ export default function Login() {
           </div>
 
           <div className="mt-4 text-center">
-            <Link to="/admin-login" className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 block mb-2">
-              Admin access
+            <Link to="/doctor-register" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 block mb-3">
+              New doctor? Create an account
             </Link>
             <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
               ← {lang === 'hi' ? 'होम पेज' : 'Back to Home'}

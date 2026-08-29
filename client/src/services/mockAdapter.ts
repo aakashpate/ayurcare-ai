@@ -16,10 +16,21 @@ function delay(ms = 150) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-const DEMO_PATIENTS: any[] = [];
-const DEMO_ENCOUNTERS: Record<string, any> = {};
+const PATIENTS_KEY = 'ayurcare-demo-patients';
+const ENCOUNTERS_KEY = 'ayurcare-demo-encounters';
+const DOCTORS_KEY = 'ayurcare-demo-doctors';
+const DOCTOR_ACCOUNTS_KEY = 'ayurcare-demo-doctor-accounts';
 
-const DEMO_DOCTORS: any[] = [
+function readStored<T>(key: string, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const DEFAULT_DOCTORS: any[] = [
   {
     id: 'DOC-001',
     fullName: 'Dr. Priya Sharma',
@@ -30,7 +41,12 @@ const DEMO_DOCTORS: any[] = [
     verificationId: 'VER-AYU-2024-001',
     verified: true,
     verifiedAt: '2024-01-15T10:00:00Z',
+    status: 'VERIFIED',
     phone: '9876543210',
+    address: 'Jaipur, Rajasthan',
+    experienceYears: 12,
+    qualifications: [{ degree: 'MD Ayurveda', institution: 'National Institute of Ayurveda', completionYear: '2012' }],
+    certificates: [{ type: 'Medical License', fileName: 'ayush-license.pdf', size: 248000 }],
     createdAt: '2024-01-10T08:00:00Z'
   },
   {
@@ -43,7 +59,12 @@ const DEMO_DOCTORS: any[] = [
     verificationId: 'VER-AYU-2024-002',
     verified: false,
     verifiedAt: null,
+    status: 'PENDING',
     phone: '9876543211',
+    address: 'New Delhi',
+    experienceYears: 7,
+    qualifications: [{ degree: 'BAMS', institution: 'Delhi University', completionYear: '2017' }],
+    certificates: [{ type: 'Degree Certificate', fileName: 'bams-degree.pdf', size: 310000 }],
     createdAt: '2024-02-01T08:00:00Z'
   },
   {
@@ -56,10 +77,35 @@ const DEMO_DOCTORS: any[] = [
     verificationId: 'VER-AYU-2024-003',
     verified: false,
     verifiedAt: null,
+    status: 'PENDING',
     phone: '9876543212',
+    address: 'Ahmedabad, Gujarat',
+    experienceYears: 9,
+    qualifications: [{ degree: 'MS Shalya Tantra', institution: 'Gujarat Ayurved University', completionYear: '2015' }],
+    certificates: [{ type: 'Medical License', fileName: 'registration-certificate.pdf', size: 286000 }],
     createdAt: '2024-02-15T08:00:00Z'
   }
 ];
+
+let DEMO_PATIENTS: any[] = readStored(PATIENTS_KEY, []);
+let DEMO_ENCOUNTERS: Record<string, any> = readStored(ENCOUNTERS_KEY, {});
+let DEMO_DOCTORS: any[] = readStored(DOCTORS_KEY, DEFAULT_DOCTORS);
+let DOCTOR_ACCOUNTS: any[] = readStored(DOCTOR_ACCOUNTS_KEY, [
+  { doctorId: 'DOC-001', email: 'doctor@ayurcare.ai', password: 'demo123' }
+]);
+
+patientCounter += DEMO_PATIENTS.length * 2;
+encounterCounter += Object.keys(DEMO_ENCOUNTERS).length;
+
+function persistClinicalData() {
+  localStorage.setItem(PATIENTS_KEY, JSON.stringify(DEMO_PATIENTS));
+  localStorage.setItem(ENCOUNTERS_KEY, JSON.stringify(DEMO_ENCOUNTERS));
+}
+
+function persistDoctorData() {
+  localStorage.setItem(DOCTORS_KEY, JSON.stringify(DEMO_DOCTORS));
+  localStorage.setItem(DOCTOR_ACCOUNTS_KEY, JSON.stringify(DOCTOR_ACCOUNTS));
+}
 
 interface MockQuestion {
   key: string;
@@ -214,8 +260,8 @@ function makeResponse<T>(data: T, status = 200): AxiosResponse<T> {
   };
 }
 
-function makeError(status: number, message: string) {
-  return { response: { status, data: { message } } };
+function makeError(status: number, message: string, extra: Record<string, any> = {}) {
+  return { response: { status, data: { message, ...extra } } };
 }
 
 const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<AxiosResponse> => {
@@ -230,12 +276,57 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'POST' && url === '/auth/login') {
     const DEMO: Record<string, any> = {
       'admin@ayurcare.ai': { id: '1', name: 'Admin User', email: 'admin@ayurcare.ai', role: 'admin' },
-      'doctor@ayurcare.ai': { id: '2', name: 'Dr. Priya Sharma', email: 'doctor@ayurcare.ai', role: 'doctor' },
       'patient@ayurcare.ai': { id: '3', name: 'Rahul Kumar', email: 'patient@ayurcare.ai', role: 'patient' }
     };
-    const user = DEMO[data?.email];
-    if (!user || data?.password !== 'demo123') throw makeError(401, 'Invalid credentials');
+    let user = DEMO[data?.email];
+    if (user && data?.password !== 'demo123') throw makeError(401, 'Invalid credentials');
+
+    if (!user) {
+      const account = DOCTOR_ACCOUNTS.find(a => a.email.toLowerCase() === data?.email?.toLowerCase());
+      if (!account || account.password !== data?.password) throw makeError(401, 'Invalid credentials');
+      const doctor = DEMO_DOCTORS.find(d => d.id === account.doctorId);
+      if (!doctor) throw makeError(401, 'Invalid credentials');
+      if (doctor.status === 'PENDING') {
+        throw makeError(403, 'Your doctor account is awaiting admin verification.', { code: 'DOCTOR_PENDING_VERIFICATION' });
+      }
+      if (doctor.status === 'REJECTED') {
+        throw makeError(403, 'Your doctor application was not approved.', { code: 'DOCTOR_APPLICATION_REJECTED' });
+      }
+      user = { id: doctor.id, name: doctor.fullName, email: account.email, role: 'doctor' };
+    }
     return makeResponse({ token: 'mock-' + Date.now(), user });
+  }
+
+  // POST /auth/doctor-register
+  if (method === 'POST' && url === '/auth/doctor-register') {
+    const emailExists = DOCTOR_ACCOUNTS.some(a => a.email.toLowerCase() === data.email.toLowerCase());
+    const licenseExists = DEMO_DOCTORS.some(d => d.licenseNo.toLowerCase() === data.licenseNo.toLowerCase());
+    if (emailExists) throw makeError(409, 'An account already exists with this email.');
+    if (licenseExists) throw makeError(409, 'This medical registration number is already registered.');
+
+    const id = `DOC-${Date.now()}`;
+    const doctor = {
+      id,
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      licenseNo: data.licenseNo,
+      speciality: data.speciality,
+      hospital: data.hospital,
+      experienceYears: data.experienceYears,
+      qualifications: data.qualifications || [],
+      certificates: data.certificates || [],
+      verificationId: `VER-${Date.now().toString().slice(-8)}`,
+      verified: false,
+      verifiedAt: null,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+    DEMO_DOCTORS.unshift(doctor);
+    DOCTOR_ACCOUNTS.push({ doctorId: id, email: data.email, password: data.password });
+    persistDoctorData();
+    return makeResponse({ doctor, verificationId: doctor.verificationId, status: doctor.status }, 201);
   }
 
   // GET /auth/me
@@ -247,6 +338,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
 
   // POST /patients
   if (method === 'POST' && url === '/patients') {
+    const currentUser = readStored<any>('mock-user', null);
     const patient = {
       id: genId('pat', ++patientCounter),
       patientCode: genPatientCode(),
@@ -254,7 +346,8 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       age: data.age,
       gender: data.gender,
       phone: data.phone,
-      email: data.email || null,
+      email: data.email || currentUser?.email || null,
+      ownerUserId: currentUser?.role === 'patient' ? currentUser.id : null,
       address: data.address || null,
       emergencyContact: data.emergencyContact || null,
       consentGiven: data.consentGiven || false,
@@ -265,7 +358,23 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       followUps: []
     };
     DEMO_PATIENTS.unshift(patient);
+    persistClinicalData();
     return makeResponse({ patient });
+  }
+
+  // GET /patients/me
+  if (method === 'GET' && url === '/patients/me') {
+    const currentUser = readStored<any>('mock-user', null);
+    if (!currentUser || currentUser.role !== 'patient') throw makeError(401, 'Not authenticated');
+    const records = DEMO_PATIENTS
+      .filter(p => p.ownerUserId === currentUser.id || p.email === currentUser.email)
+      .map(p => ({
+        ...p,
+        encounters: Object.values(DEMO_ENCOUNTERS)
+          .filter((e: any) => e.patientId === p.id)
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      }));
+    return makeResponse({ records });
   }
 
   // GET /patients/:id
@@ -282,10 +391,13 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const search = params?.search || '';
     const page = parseInt(params?.page) || 1;
     const limit = parseInt(params?.limit) || 20;
-    let list = DEMO_PATIENTS;
+    let list = DEMO_PATIENTS.map(p => ({
+      ...p,
+      encounters: Object.values(DEMO_ENCOUNTERS).filter((e: any) => e.patientId === p.id)
+    }));
     if (search) {
       const s = search.toLowerCase();
-      list = DEMO_PATIENTS.filter(p => p.fullName.toLowerCase().includes(s) || p.patientCode.toLowerCase().includes(s));
+      list = list.filter(p => p.fullName.toLowerCase().includes(s) || p.patientCode.toLowerCase().includes(s));
     }
     return makeResponse({ patients: list.slice((page - 1) * limit, page * limit), pagination: { total: list.length, pages: Math.ceil(list.length / limit) } });
   }
@@ -311,6 +423,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       createdAt: new Date().toISOString()
     };
     DEMO_ENCOUNTERS[enc.id] = enc;
+    persistClinicalData();
     return makeResponse({ encounter: enc });
   }
 
@@ -336,6 +449,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     if (data.questionKey === 'chiefComplaint') enc.chiefComplaint = data.response;
     if (data.questionKey === 'duration') enc.duration = data.response;
     if (data.questionKey === 'severity') enc.severity = parseInt(data.response) || 5;
+    persistClinicalData();
     return makeResponse({ success: true });
   }
 
@@ -345,6 +459,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const enc = DEMO_ENCOUNTERS[vitMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     enc.vitals = { ...enc.vitals, ...data, recordedAt: new Date().toISOString() };
+    persistClinicalData();
     return makeResponse({ success: true, vitals: enc.vitals });
   }
 
@@ -354,6 +469,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const enc = DEMO_ENCOUNTERS[bioMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     enc.biomedicalAssessment = { ...enc.biomedicalAssessment, ...data };
+    persistClinicalData();
     return makeResponse({ success: true, biomedical: enc.biomedicalAssessment });
   }
 
@@ -363,6 +479,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const enc = DEMO_ENCOUNTERS[ayuMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     enc.ayurvedicAssessment = { ...enc.ayurvedicAssessment, ...data };
+    persistClinicalData();
     return makeResponse({ success: true, ayurvedic: enc.ayurvedicAssessment });
   }
 
@@ -378,6 +495,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
       biomedicalAssessment: enc.biomedicalAssessment
     });
     enc.redFlags = flags;
+    persistClinicalData();
     return makeResponse({ redFlags: flags });
   }
 
@@ -493,6 +611,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     
     enc.generatedSummary = sections.join('\n');
     enc.biomedicalAssessment = enc.biomedicalAssessment || { findings: enc.chiefComplaint || 'No significant findings' };
+    persistClinicalData();
     return makeResponse({ summary: enc.generatedSummary });
   }
 
@@ -502,6 +621,7 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const enc = DEMO_ENCOUNTERS[spMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     enc.generatedSummary = data.summary;
+    persistClinicalData();
     return makeResponse({ success: true });
   }
 
@@ -510,8 +630,9 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
   if (method === 'POST' && apMatch) {
     const enc = DEMO_ENCOUNTERS[apMatch[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
-    enc.status = 'APPROVED';
+    enc.status = 'SUBMITTED';
     enc.summaryApproved = true;
+    persistClinicalData();
     return makeResponse({ success: true });
   }
 
@@ -562,17 +683,23 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     const doc = DEMO_DOCTORS.find(d => d.id === verifyMatch[1]);
     if (!doc) throw makeError(404, 'Doctor not found');
     doc.verified = true;
+    doc.status = 'VERIFIED';
     doc.verifiedAt = new Date().toISOString();
+    persistDoctorData();
     return makeResponse({ success: true, doctor: doc });
   }
 
   // PATCH /admin/doctors/:id/reject
   const rejectMatch = url.match(/^\/admin\/doctors\/([^/]+)\/reject$/);
   if (method === 'PATCH' && rejectMatch) {
-    const docIdx = DEMO_DOCTORS.findIndex(d => d.id === rejectMatch[1]);
-    if (docIdx === -1) throw makeError(404, 'Doctor not found');
-    DEMO_DOCTORS.splice(docIdx, 1);
-    return makeResponse({ success: true });
+    const doc = DEMO_DOCTORS.find(d => d.id === rejectMatch[1]);
+    if (!doc) throw makeError(404, 'Doctor not found');
+    doc.verified = false;
+    doc.status = 'REJECTED';
+    doc.rejectionReason = data?.reason || 'Credentials could not be verified.';
+    doc.reviewedAt = new Date().toISOString();
+    persistDoctorData();
+    return makeResponse({ success: true, doctor: doc });
   }
 
   throw makeError(404, 'Mock endpoint not found');

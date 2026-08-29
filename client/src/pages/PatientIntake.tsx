@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Heart, Shield, Globe, User, MessageCircle,
   ClipboardList, FileText, AlertTriangle, CheckCircle,
@@ -94,6 +95,7 @@ const AYUSH_QUESTIONS = [
 
 export default function PatientIntake() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [state, setState] = useState<IntakeState>({
     step: 0,
     consentGiven: false,
@@ -122,8 +124,6 @@ export default function PatientIntake() {
 
   const lang = state.language;
   const isHi = lang === 'hi';
-
-  const isMockMode = !import.meta.env.VITE_API_URL;
 
   const updateState = (partial: Partial<IntakeState>) => {
     setState(prev => ({ ...prev, ...partial }));
@@ -790,6 +790,7 @@ export default function PatientIntake() {
           age: state.age,
           gender: state.gender,
           phone: state.phone,
+          email: user?.email,
           consentGiven: true,
         });
         const patientId = patientRes.data.patient.id;
@@ -916,7 +917,7 @@ export default function PatientIntake() {
               </button>
               <button
                 onClick={async () => {
-                  if (!isMockMode && state.encounterId) {
+                  if (state.encounterId) {
                     await api.patch(`/encounters/${state.encounterId}/summary`, { summary: state.summary });
                     await api.post(`/encounters/${state.encounterId}/approve`);
                   }
@@ -952,11 +953,11 @@ export default function PatientIntake() {
           : 'Your information has been sent to your doctor. Please proceed to meet your doctor.'}
       </p>
       <div className="flex gap-3 justify-center">
-        <button onClick={() => navigate('/')} className="btn-primary">
-          {isHi ? 'होम पेज' : 'Home'}
+        <button onClick={() => navigate('/patient-dashboard')} className="btn-primary">
+          {isHi ? 'मेरा डैशबोर्ड' : 'My Dashboard'}
         </button>
         {state.patientId && (
-          <button onClick={() => navigate(`/patients/${state.patientId}`)} className="btn-secondary">
+          <button onClick={() => navigate('/patient-dashboard')} className="btn-secondary">
             {isHi ? 'अपना रिकॉर्ड देखें' : 'View My Record'}
           </button>
         )}
@@ -1023,8 +1024,8 @@ export default function PatientIntake() {
 
       {/* Back to Home */}
       <div className="fixed bottom-4 left-4">
-        <button onClick={() => navigate('/')} className="text-sm text-gray-500 hover:text-gray-700">
-          ← {isHi ? 'होम' : 'Home'}
+        <button onClick={() => navigate('/patient-dashboard')} className="text-sm text-gray-500 hover:text-gray-700">
+          ← {isHi ? 'डैशबोर्ड' : 'Dashboard'}
         </button>
       </div>
     </div>

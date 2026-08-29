@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import PatientLogin from './pages/PatientLogin';
+import DoctorRegister from './pages/DoctorRegister';
 import PatientIntake from './pages/PatientIntake';
 import PatientDashboard from './pages/PatientDashboard';
 import Dashboard from './pages/Dashboard';
@@ -64,8 +66,14 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/patient-login" element={<PatientLogin />} />
+          <Route path="/doctor-register" element={<DoctorRegister />} />
           <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/patient-intake" element={<PatientIntake />} />
+          <Route path="/patient-intake" element={
+            <RoleRoute role="patient">
+              <PatientIntake />
+            </RoleRoute>
+          } />
           <Route path="/patient-dashboard" element={
             <RoleRoute role="patient">
               <PatientDashboard />

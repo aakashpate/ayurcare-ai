@@ -14,7 +14,12 @@ import {
   Sun,
   Moon,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  X,
+  Award,
+  MapPin,
+  Briefcase
 } from 'lucide-react';
 import { Component as Background } from '@/components/ui/background-snippets';
 
@@ -28,7 +33,13 @@ interface Doctor {
   verificationId: string;
   verified: boolean;
   verifiedAt: string | null;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
   phone: string;
+  address?: string;
+  experienceYears?: number;
+  rejectionReason?: string;
+  qualifications?: Array<{ degree: string; institution: string; completionYear: string }>;
+  certificates?: Array<{ type: string; fileName: string; size: number; dataUrl?: string }>;
   createdAt: string;
 }
 
@@ -37,6 +48,7 @@ export default function Admin() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'verified'>('all');
   const [search, setSearch] = useState('');
   const [dark, setDark] = useState(() => {
@@ -76,14 +88,9 @@ export default function Admin() {
   const handleVerify = async (doctorId: string) => {
     setActionLoading(doctorId);
     try {
-      await api.patch(`/admin/doctors/${doctorId}/verify`);
-      setDoctors(prev =>
-        prev.map(d =>
-          d.id === doctorId
-            ? { ...d, verified: true, verifiedAt: new Date().toISOString() }
-            : d
-        )
-      );
+      const response = await api.patch(`/admin/doctors/${doctorId}/verify`);
+      setDoctors(prev => prev.map(d => d.id === doctorId ? response.data.doctor : d));
+      setSelectedDoctor(prev => prev?.id === doctorId ? response.data.doctor : prev);
     } catch (error) {
       console.error('Failed to verify doctor:', error);
     } finally {
@@ -92,10 +99,13 @@ export default function Admin() {
   };
 
   const handleReject = async (doctorId: string) => {
+    const reason = window.prompt('Enter the reason this application cannot be verified:');
+    if (!reason?.trim()) return;
     setActionLoading(doctorId);
     try {
-      await api.patch(`/admin/doctors/${doctorId}/reject`);
-      setDoctors(prev => prev.filter(d => d.id !== doctorId));
+      const response = await api.patch(`/admin/doctors/${doctorId}/reject`, { reason: reason.trim() });
+      setDoctors(prev => prev.map(d => d.id === doctorId ? response.data.doctor : d));
+      setSelectedDoctor(prev => prev?.id === doctorId ? response.data.doctor : prev);
     } catch (error) {
       console.error('Failed to reject doctor:', error);
     } finally {
@@ -110,18 +120,20 @@ export default function Admin() {
 
   const filteredDoctors = doctors.filter(d => {
     const matchesFilter =
-      filter === 'all' ? true : filter === 'pending' ? !d.verified : d.verified;
+      filter === 'all' ? true : filter === 'pending' ? d.status === 'PENDING' : d.status === 'VERIFIED';
     const matchesSearch =
       !search ||
       d.fullName.toLowerCase().includes(search.toLowerCase()) ||
       d.email.toLowerCase().includes(search.toLowerCase()) ||
       d.licenseNo.toLowerCase().includes(search.toLowerCase()) ||
-      d.speciality.toLowerCase().includes(search.toLowerCase());
+      d.speciality.toLowerCase().includes(search.toLowerCase()) ||
+      d.verificationId.toLowerCase().includes(search.toLowerCase()) ||
+      d.qualifications?.some(q => q.degree.toLowerCase().includes(search.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
-  const pendingCount = doctors.filter(d => !d.verified).length;
-  const verifiedCount = doctors.filter(d => d.verified).length;
+  const pendingCount = doctors.filter(d => d.status === 'PENDING').length;
+  const verifiedCount = doctors.filter(d => d.status === 'VERIFIED').length;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -267,12 +279,12 @@ export default function Admin() {
                   <div className="flex items-start gap-4">
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        doc.verified
+                        doc.status === 'VERIFIED'
                           ? 'bg-green-100 dark:bg-green-900/50'
                           : 'bg-amber-100 dark:bg-amber-900/50'
                       }`}
                     >
-                      {doc.verified ? (
+                      {doc.status === 'VERIFIED' ? (
                         <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
                       ) : (
                         <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
@@ -282,6 +294,7 @@ export default function Admin() {
                       <h3 className="font-semibold text-gray-900 dark:text-white">{doc.fullName}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{doc.email}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{doc.phone}</p>
+                      {doc.address && <p className="text-sm text-gray-500 dark:text-gray-400">{doc.address}</p>}
                       <div className="flex flex-wrap gap-2 mt-2">
                         <span className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded-full">
                           <FileText className="w-3 h-3" />
@@ -305,10 +318,20 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {doc.verified ? (
+                    <button
+                      onClick={() => setSelectedDoctor(doc)}
+                      className="flex items-center gap-1.5 text-sm border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                    >
+                      <Eye className="w-4 h-4" /> Details
+                    </button>
+                    {doc.status === 'VERIFIED' ? (
                       <span className="flex items-center gap-1.5 text-sm bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg font-medium">
                         <CheckCircle className="w-4 h-4" />
                         Verified
+                      </span>
+                    ) : doc.status === 'REJECTED' ? (
+                      <span className="flex items-center gap-1.5 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg font-medium">
+                        <UserX className="w-4 h-4" /> Rejected
                       </span>
                     ) : (
                       <>
@@ -342,6 +365,53 @@ export default function Admin() {
           AyurCare Admin — Restricted Access
         </div>
       </div>
+
+      {selectedDoctor && (
+        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center" onClick={() => setSelectedDoctor(null)}>
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl" onClick={event => event.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-5 flex items-center justify-between">
+              <div><p className="text-xs font-medium text-red-600 uppercase tracking-wider">Doctor verification file</p><h2 className="text-xl font-serif font-bold text-gray-900 dark:text-white mt-1">{selectedDoctor.fullName}</h2></div>
+              <button onClick={() => setSelectedDoctor(null)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="p-5 sm:p-7 space-y-7">
+              <section className="grid sm:grid-cols-2 gap-4">
+                {[
+                  ['Email', selectedDoctor.email], ['Phone', selectedDoctor.phone],
+                  ['Registration number', selectedDoctor.licenseNo], ['Speciality', selectedDoctor.speciality],
+                  ['Hospital / clinic', selectedDoctor.hospital], ['Verification ID', selectedDoctor.verificationId]
+                ].map(([label, value]) => <div key={label} className="rounded-xl bg-gray-50 dark:bg-gray-700/50 p-4"><p className="text-xs text-gray-500 dark:text-gray-400">{label}</p><p className="font-medium text-gray-900 dark:text-white mt-1">{value}</p></div>)}
+              </section>
+
+              <section className="grid sm:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3"><MapPin className="w-5 h-5 text-red-500 mt-0.5" /><div><p className="text-sm text-gray-500">Address</p><p className="text-gray-900 dark:text-white">{selectedDoctor.address || 'Not provided'}</p></div></div>
+                <div className="flex items-start gap-3"><Briefcase className="w-5 h-5 text-red-500 mt-0.5" /><div><p className="text-sm text-gray-500">Experience</p><p className="text-gray-900 dark:text-white">{selectedDoctor.experienceYears ?? 'Not provided'} years</p></div></div>
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Award className="w-5 h-5 text-amber-500" /> Qualifications</h3>
+                <div className="mt-3 space-y-2">
+                  {selectedDoctor.qualifications?.length ? selectedDoctor.qualifications.map((qualification, index) => (
+                    <div key={`${qualification.degree}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col sm:flex-row sm:justify-between gap-1"><div><p className="font-medium text-gray-900 dark:text-white">{qualification.degree}</p><p className="text-sm text-gray-500">{qualification.institution}</p></div><span className="text-sm text-gray-500">Completed {qualification.completionYear}</span></div>
+                  )) : <p className="text-sm text-gray-500">No qualifications supplied.</p>}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><FileText className="w-5 h-5 text-blue-500" /> Submitted certificates</h3>
+                <div className="mt-3 space-y-2">
+                  {selectedDoctor.certificates?.length ? selectedDoctor.certificates.map((certificate, index) => (
+                    <div key={`${certificate.fileName}-${index}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-3"><div><p className="font-medium text-gray-900 dark:text-white">{certificate.fileName}</p><p className="text-sm text-gray-500">{certificate.type} · {Math.ceil(certificate.size / 1024)} KB</p></div>{certificate.dataUrl ? <a href={certificate.dataUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">View document</a> : <span className="text-xs text-gray-500">Demo record</span>}</div>
+                  )) : <p className="text-sm text-gray-500">No certificates supplied.</p>}
+                </div>
+              </section>
+
+              {selectedDoctor.rejectionReason && <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4"><p className="text-sm font-medium text-red-800 dark:text-red-300">Rejection reason</p><p className="text-sm text-red-700 dark:text-red-400 mt-1">{selectedDoctor.rejectionReason}</p></div>}
+
+              {selectedDoctor.status === 'PENDING' && <div className="flex flex-col sm:flex-row gap-3"><button onClick={() => handleVerify(selectedDoctor.id)} disabled={actionLoading === selectedDoctor.id} className="flex-1 rounded-xl bg-green-600 py-3 text-white font-semibold hover:bg-green-700 disabled:opacity-50">Verify doctor</button><button onClick={() => handleReject(selectedDoctor.id)} disabled={actionLoading === selectedDoctor.id} className="flex-1 rounded-xl bg-red-100 py-3 text-red-700 font-semibold hover:bg-red-200 disabled:opacity-50">Reject application</button></div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

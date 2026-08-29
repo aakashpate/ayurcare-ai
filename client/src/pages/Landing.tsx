@@ -69,7 +69,7 @@ export default function Landing() {
         <div className="w-full max-w-lg space-y-6">
           {/* Patient Mode */}
           <button
-            onClick={() => navigate('/patient-intake')}
+            onClick={() => navigate('/patient-login')}
             className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 border-primary-200 dark:border-primary-700 hover:border-primary-400 dark:hover:border-primary-500 hover:shadow-xl transition-all p-8 text-left group"
           >
             <div className="flex items-center gap-6">
@@ -83,7 +83,7 @@ export default function Landing() {
                 <p className="text-gray-600 dark:text-gray-400">
                   {lang === 'hi'
                     ? 'अपने डॉक्टर से मिलने से पहले अपना स्वास्थ्य इतिहास पूरा करें'
-                    : 'Complete your health history before meeting your doctor'}
+                    : 'Welcome to your private health intake and records portal'}
                 </p>
               </div>
               <div className="text-primary-400 group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors">

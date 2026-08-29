@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Shield, Lock, User, AlertCircle, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { Component as Background } from '@/components/ui/background-snippets';
 
 const ADMIN_CREDENTIALS = {
@@ -39,6 +39,13 @@ export default function AdminLogin() {
       <Background />
 
       <div className="w-full max-w-md mx-4">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-4 inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 relative z-10"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to welcome page
+        </button>
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-900/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
