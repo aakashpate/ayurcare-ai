@@ -2,7 +2,12 @@
   "name": "ayurcare-client",
   "private": true,
   "version": "1.0.0",
+  "description": "Patient and practitioner web application for AyurCare AI",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
