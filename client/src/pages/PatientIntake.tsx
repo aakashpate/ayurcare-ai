@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setLanguage } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -212,7 +211,7 @@ export default function PatientIntake() {
 
       <div className="grid grid-cols-2 gap-4">
         <button
-          onClick={() => { updateState({ language: 'en' }); setLanguage('en'); }}
+          onClick={() => updateState({ language: 'en' })}
           className={`p-6 border-2 rounded-xl text-center transition-all ${
             state.language === 'en' 
               ? 'border-primary-500 bg-primary-50 shadow-md' 
@@ -225,7 +224,7 @@ export default function PatientIntake() {
           <div className="font-medium text-gray-900">English</div>
         </button>
         <button
-          onClick={() => { updateState({ language: 'hi' }); setLanguage('hi'); }}
+          onClick={() => updateState({ language: 'hi' })}
           className={`p-6 border-2 rounded-xl text-center transition-all ${
             state.language === 'hi' 
               ? 'border-primary-500 bg-primary-50 shadow-md' 
@@ -253,7 +252,12 @@ export default function PatientIntake() {
   );
 
   // Step 2: Patient Identification
-  const renderIdentification = () => (
+  const renderIdentification = () => {
+    const isValidAge = state.age >= 1 && state.age <= 150;
+    const isValidPhone = /^[6-9]\d{9}$/.test(state.phone.replace(/\D/g, ''));
+    const canProceed = state.fullName.trim().length > 0 && isValidAge && isValidPhone;
+
+    return (
     <div className="space-y-6">
       <div className="text-center mb-8">
         <User className="mx-auto h-16 w-16 text-primary-500 mb-4" />
@@ -282,12 +286,21 @@ export default function PatientIntake() {
             </label>
             <input
               type="number"
-              value={state.age}
-              onChange={(e) => updateState({ age: parseInt(e.target.value) || 0 })}
-              className="input-field"
-              min="0"
+              value={state.age || ''}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                updateState({ age: isNaN(val) ? 0 : val });
+              }}
+              className={`input-field ${!isValidAge && state.age > 0 ? 'border-red-500' : ''}`}
+              min="1"
               max="150"
+              placeholder="1-150"
             />
+            {!isValidAge && state.age > 0 && (
+              <p className="text-red-500 text-xs mt-1">
+                {isHi ? 'कृपया 1 से 150 के बीच आयु दर्ज करें' : 'Age must be between 1 and 150'}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -311,10 +324,19 @@ export default function PatientIntake() {
           <input
             type="tel"
             value={state.phone}
-            onChange={(e) => updateState({ phone: e.target.value })}
-            className="input-field"
-            placeholder="+91-XXXXXXXXXX"
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+              updateState({ phone: digits });
+            }}
+            className={`input-field ${state.phone && !isValidPhone ? 'border-red-500' : ''}`}
+            placeholder="10-digit mobile number"
+            maxLength={10}
           />
+          {state.phone && !isValidPhone && (
+            <p className="text-red-500 text-xs mt-1">
+              {isHi ? 'कृपया 10 अंकों का मान्य फोन नंबर दर्ज करें' : 'Enter a valid 10-digit phone number starting with 6-9'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -325,15 +347,16 @@ export default function PatientIntake() {
         </button>
         <button 
           onClick={() => updateState({ step: 3 })}
-          disabled={!state.fullName.trim() || !state.phone.trim()}
-          className="btn-primary flex-1 disabled:opacity-50"
+          disabled={!canProceed}
+          className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isHi ? 'आगे बढ़ें' : 'Continue'}
           <ArrowRight className="w-4 h-4 ml-2 inline" />
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   // Step 3: Chief Complaint Selection
   const renderChiefComplaint = () => (
