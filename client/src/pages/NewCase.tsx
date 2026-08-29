@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { t } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   User, 
   FileText, 
@@ -31,6 +32,7 @@ type RegistrationData = z.infer<typeof registrationSchema>;
 
 export default function NewCase() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [encounterId, setEncounterId] = useState<string | null>(null);
 
@@ -65,14 +67,15 @@ export default function NewCase() {
       
       const encounterResponse = await api.post('/encounters', {
         patientId: newPatientId,
-        visitType: 'INITIAL'
+        visitType: 'INITIAL',
+        doctorId: user?.id
       });
       
       setEncounterId(encounterResponse.data.encounter.id);
       toast.success('Patient registered successfully!');
       setCurrentStep(2);
-    } catch (error) {
-      toast.error('Failed to register patient');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to register patient');
       console.error(error);
     }
   };
@@ -95,6 +98,7 @@ export default function NewCase() {
       const encounterResponse = await api.post('/encounters', {
         patientId: newPatientId,
         visitType: 'INITIAL',
+        doctorId: user?.id,
         chiefComplaint: 'Stomach pain and bloating',
         duration: '3 days',
         severity: 7,

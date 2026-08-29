@@ -453,8 +453,10 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
 
   // POST /encounters
   if (method === 'POST' && url === '/encounters') {
+    const currentUser = readStored<any>('mock-user', null);
+    const requestedDoctorId = data.doctorId || (currentUser?.role === 'doctor' ? currentUser.id : null);
     const doctor = DEMO_DOCTORS.find(d =>
-      d.status === 'VERIFIED' && (d.id === data.doctorId || d.verificationId === data.doctorId)
+      d.status === 'VERIFIED' && (d.id === requestedDoctorId || d.verificationId === requestedDoctorId)
     );
     if (!doctor) throw makeError(400, 'Choose a verified doctor or enter a valid doctor ID.');
     const enc = {
