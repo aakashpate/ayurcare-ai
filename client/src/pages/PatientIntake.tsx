@@ -598,6 +598,8 @@ export default function PatientIntake() {
 
   // Step 6: Ayurveda Assessment
   const renderAyurveda = () => {
+    const allAnswered = AYUSH_QUESTIONS.every(q => state.ayurvedicData[q.key]);
+
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">
@@ -608,15 +610,24 @@ export default function PatientIntake() {
           <p className="text-sm text-gray-500 mt-1">
             {isHi ? 'अपने शरीर के प्रकार और जीवन शैली के बारे में बताएं' : 'Tell us about your body type and lifestyle'}
           </p>
+          {!allAnswered && (
+            <p className="text-sm text-red-500 mt-2 font-medium">
+              {isHi ? 'कृपया सभी प्रश्नों के उत्तर दें *' : 'Please answer all questions *'}
+            </p>
+          )}
         </div>
 
         <div className="space-y-4">
           {AYUSH_QUESTIONS.map((q) => {
             const qText = isHi ? (q.textHi || q.text) : q.text;
             const options = isHi ? (q.optionsHi || q.options) : q.options;
+            const isAnswered = !!state.ayurvedicData[q.key];
             return (
-              <div key={q.key} className="bg-white border rounded-xl p-4">
-                <h4 className="font-medium text-gray-900 mb-3">{qText}</h4>
+              <div key={q.key} className={`bg-white border rounded-xl p-4 transition-all ${!isAnswered ? 'border-red-300' : 'border-primary-300'}`}>
+                <h4 className="font-medium text-gray-900 mb-3">
+                  {qText}
+                  {!isAnswered && <span className="text-red-500 ml-1">*</span>}
+                </h4>
                 <div className="grid grid-cols-2 gap-2">
                   {options?.map((opt, i) => (
                     <button
@@ -651,8 +662,15 @@ export default function PatientIntake() {
             {isHi ? 'वापस' : 'Back'}
           </button>
           <button
-            onClick={() => updateState({ step: 7 })}
-            className="btn-primary flex-1"
+            onClick={() => {
+              if (!allAnswered) {
+                toast.error(isHi ? 'कृपया सभी प्रश्नों के उत्तर दें' : 'Please answer all questions');
+                return;
+              }
+              updateState({ step: 7 });
+            }}
+            disabled={!allAnswered}
+            className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isHi ? 'आगे बढ़ें' : 'Continue'}
             <ArrowRight className="w-4 h-4 ml-2 inline" />
