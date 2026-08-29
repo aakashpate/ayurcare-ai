@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { t, setLanguage } from '../i18n';
+import { t } from '../i18n';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -18,9 +18,9 @@ import {
 
 const registrationSchema = z.object({
   fullName: z.string().min(1, 'Name is required'),
-  age: z.number().min(0).max(150, 'Invalid age'),
+  age: z.number().min(1, 'Age must be at least 1').max(150, 'Invalid age'),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
-  phone: z.string().min(10, 'Phone must be at least 10 digits'),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit phone number'),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   emergencyContact: z.string().optional(),
@@ -28,14 +28,6 @@ const registrationSchema = z.object({
 });
 
 type RegistrationData = z.infer<typeof registrationSchema>;
-
-const steps = [
-  { id: 1, name: t('intake.step1'), icon: User },
-  { id: 2, name: t('intake.step2'), icon: ClipboardList },
-  { id: 3, name: t('intake.step3'), icon: FileText },
-  { id: 4, name: t('intake.step4'), icon: Upload },
-  { id: 5, name: t('intake.step5'), icon: CheckCircle },
-];
 
 export default function NewCase() {
   const navigate = useNavigate();
@@ -51,6 +43,14 @@ export default function NewCase() {
   });
 
   const consentGiven = watch('consentGiven');
+
+  const steps = [
+    { id: 1, name: t('intake.step1'), icon: User },
+    { id: 2, name: t('intake.step2'), icon: ClipboardList },
+    { id: 3, name: t('intake.step3'), icon: FileText },
+    { id: 4, name: t('intake.step4'), icon: Upload },
+    { id: 5, name: t('intake.step5'), icon: CheckCircle },
+  ];
 
   const onSubmitRegistration = async (data: RegistrationData) => {
     try {
@@ -79,16 +79,14 @@ export default function NewCase() {
 
   const handleLoadDemo = async () => {
     try {
-      setLanguage('hi');
-      
       const response = await api.post('/patients', {
         fullName: 'Rohan Sharma',
         age: 45,
         gender: 'MALE',
-        phone: '+91-9876543210',
+        phone: '9876543210',
         email: 'rohan@email.com',
         address: '123 Wellness Street, New Delhi',
-        emergencyContact: '+91-9876543211',
+        emergencyContact: '9876543211',
         consentGiven: true
       });
       
@@ -97,14 +95,14 @@ export default function NewCase() {
       const encounterResponse = await api.post('/encounters', {
         patientId: newPatientId,
         visitType: 'INITIAL',
-        chiefComplaint: 'पेट में दर्द और सूजन',
-        duration: '3 दिन',
+        chiefComplaint: 'Stomach pain and bloating',
+        duration: '3 days',
         severity: 7,
-        language: 'hi'
+        language: 'en'
       });
       
       setEncounterId(encounterResponse.data.encounter.id);
-      toast.success('डेमो रोगी लोड हो गया! (Demo patient loaded!)');
+      toast.success('Demo patient loaded!');
       setCurrentStep(2);
     } catch (error) {
       toast.error('Failed to load demo patient');
