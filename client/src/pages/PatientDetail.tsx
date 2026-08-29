@@ -13,8 +13,71 @@ import {
   Link as LinkIcon,
   TrendingDown,
   TrendingUp,
-  Minus
+  Minus,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  Heart
 } from 'lucide-react';
+
+interface InterviewResponse {
+  questionKey: string;
+  questionText: string;
+  response: string;
+  language?: string;
+  source?: string;
+}
+
+interface BiomedicalAssessment {
+  pastMedicalHistory?: string;
+  pastSurgicalHistory?: string;
+  allergies?: string;
+  medications?: string;
+  familyHistory?: string;
+  personalHistory?: string;
+  examinationFindings?: string;
+}
+
+interface AyurvedicAssessment {
+  prakriti?: string;
+  vikriti?: string;
+  agni?: string;
+  ahara?: string;
+  nidra?: string;
+  exercise?: string;
+  stress?: string;
+  bmi?: string;
+  bowelPattern?: string;
+}
+
+interface Vitals {
+  systolicBP?: number;
+  diastolicBP?: number;
+  pulse?: number;
+  temperature?: number;
+  weight?: number;
+  height?: number;
+  spo2?: number;
+}
+
+interface Encounter {
+  id: string;
+  chiefComplaint: string;
+  status: string;
+  createdAt: string;
+  severity?: number;
+  duration?: string;
+  generatedSummary?: string;
+  summaryApproved: boolean;
+  vitals?: Vitals;
+  interviewResponses: InterviewResponse[];
+  biomedicalAssessment?: BiomedicalAssessment;
+  ayurvedicAssessment?: AyurvedicAssessment;
+  redFlags: Array<{
+    level: string;
+    reason: string;
+  }>;
+}
 
 interface Patient {
   id: string;
@@ -29,23 +92,7 @@ interface Patient {
   consentGiven: boolean;
   consentAt?: string;
   createdAt: string;
-  encounters: Array<{
-    id: string;
-    chiefComplaint: string;
-    status: string;
-    createdAt: string;
-    severity?: number;
-    vitals?: {
-      systolicBP?: number;
-      diastolicBP?: number;
-      pulse?: number;
-      temperature?: number;
-    };
-    redFlags: Array<{
-      level: string;
-      reason: string;
-    }>;
-  }>;
+  encounters: Encounter[];
   documents: Array<{
     id: string;
     filename: string;
@@ -63,6 +110,7 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedEncounter, setExpandedEncounter] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -96,6 +144,10 @@ export default function PatientDetail() {
     } catch (error) {
       console.error('Failed to export PDF:', error);
     }
+  };
+
+  const toggleEncounter = (encounterId: string) => {
+    setExpandedEncounter(expandedEncounter === encounterId ? null : encounterId);
   };
 
   if (loading) {
@@ -209,7 +261,7 @@ export default function PatientDetail() {
 
       {/* Timeline */}
       <div className="card">
-        <h2 className="text-lg font-serif font-semibold text-gray-900 mb-6">Visit Timeline</h2>
+        <h2 className="text-lg font-serif font-semibold text-gray-900 mb-6">Visit Timeline & History</h2>
         
         {patient.encounters.length === 0 ? (
           <div className="text-center py-8">
@@ -269,6 +321,17 @@ export default function PatientDetail() {
                         >
                           <Printer className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => toggleEncounter(encounter.id)}
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                          title={expandedEncounter === encounter.id ? 'Collapse' : 'Expand'}
+                        >
+                          {expandedEncounter === encounter.id ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
                     
@@ -290,12 +353,206 @@ export default function PatientDetail() {
                       </div>
                     )}
 
-                    <Link 
-                      to={`/review/${encounter.id}`}
-                      className="mt-2 inline-flex items-center text-sm text-primary-600 hover:text-primary-700"
-                    >
-                      View Details →
-                    </Link>
+                    {/* Expanded Encounter Details */}
+                    {expandedEncounter === encounter.id && (
+                      <div className="mt-4 space-y-4 border-t pt-4">
+                        {/* Vitals */}
+                        {encounter.vitals && (
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                              <Activity className="w-4 h-4 mr-2" />
+                              Vital Signs
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                              {encounter.vitals.systolicBP && encounter.vitals.diastolicBP && (
+                                <div>
+                                  <span className="text-gray-500">Blood Pressure:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.systolicBP}/{encounter.vitals.diastolicBP} mmHg</span>
+                                </div>
+                              )}
+                              {encounter.vitals.pulse && (
+                                <div>
+                                  <span className="text-gray-500">Pulse:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.pulse} bpm</span>
+                                </div>
+                              )}
+                              {encounter.vitals.temperature && (
+                                <div>
+                                  <span className="text-gray-500">Temperature:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.temperature}°C</span>
+                                </div>
+                              )}
+                              {encounter.vitals.spo2 && (
+                                <div>
+                                  <span className="text-gray-500">SpO2:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.spo2}%</span>
+                                </div>
+                              )}
+                              {encounter.vitals.weight && (
+                                <div>
+                                  <span className="text-gray-500">Weight:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.weight} kg</span>
+                                </div>
+                              )}
+                              {encounter.vitals.height && (
+                                <div>
+                                  <span className="text-gray-500">Height:</span>
+                                  <span className="ml-1 font-medium">{encounter.vitals.height} cm</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Interview Responses */}
+                        {encounter.interviewResponses && encounter.interviewResponses.length > 0 && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                              <ClipboardList className="w-4 h-4 mr-2" />
+                              Interview Responses ({encounter.interviewResponses.length})
+                            </h4>
+                            <div className="space-y-2">
+                              {encounter.interviewResponses.map((resp, idx) => (
+                                <div key={idx} className="text-sm border-b border-gray-200 pb-2 last:border-0">
+                                  <span className="font-medium text-gray-700">{resp.questionText}:</span>
+                                  <span className="ml-1 text-gray-600">{resp.response}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Biomedical Assessment */}
+                        {encounter.biomedicalAssessment && (
+                          <div className="bg-green-50 rounded-lg p-4">
+                            <h4 className="font-medium text-green-900 mb-2 flex items-center">
+                              <FileText className="w-4 h-4 mr-2" />
+                              Biomedical Assessment
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                              {encounter.biomedicalAssessment.pastMedicalHistory && (
+                                <div>
+                                  <span className="text-gray-500">Past Medical:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.pastMedicalHistory}</p>
+                                </div>
+                              )}
+                              {encounter.biomedicalAssessment.pastSurgicalHistory && (
+                                <div>
+                                  <span className="text-gray-500">Past Surgical:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.pastSurgicalHistory}</p>
+                                </div>
+                              )}
+                              {encounter.biomedicalAssessment.medications && (
+                                <div>
+                                  <span className="text-gray-500">Current Medications:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.medications}</p>
+                                </div>
+                              )}
+                              {encounter.biomedicalAssessment.allergies && (
+                                <div>
+                                  <span className="text-gray-500">Allergies:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.allergies}</p>
+                                </div>
+                              )}
+                              {encounter.biomedicalAssessment.familyHistory && (
+                                <div>
+                                  <span className="text-gray-500">Family History:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.familyHistory}</p>
+                                </div>
+                              )}
+                              {encounter.biomedicalAssessment.personalHistory && (
+                                <div>
+                                  <span className="text-gray-500">Personal History:</span>
+                                  <p className="mt-1 text-gray-700">{encounter.biomedicalAssessment.personalHistory}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ayurvedic Assessment */}
+                        {encounter.ayurvedicAssessment && (
+                          <div className="bg-orange-50 rounded-lg p-4">
+                            <h4 className="font-medium text-orange-900 mb-2 flex items-center">
+                              <Heart className="w-4 h-4 mr-2" />
+                              Ayurvedic Assessment
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                              {encounter.ayurvedicAssessment.agni && (
+                                <div>
+                                  <span className="text-gray-500">Agni (Digestive Fire):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.agni}</p>
+                                </div>
+                              )}
+                              {encounter.ayurvedicAssessment.ahara && (
+                                <div>
+                                  <span className="text-gray-500">Ahara (Diet):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.ahara}</p>
+                                </div>
+                              )}
+                              {encounter.ayurvedicAssessment.nidra && (
+                                <div>
+                                  <span className="text-gray-500">Nidra (Sleep):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.nidra}</p>
+                                </div>
+                              )}
+                              {encounter.ayurvedicAssessment.exercise && (
+                                <div>
+                                  <span className="text-gray-500">Vyayama Shakti (Exercise):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.exercise}</p>
+                                </div>
+                              )}
+                              {encounter.ayurvedicAssessment.stress && (
+                                <div>
+                                  <span className="text-gray-500">Sattva (Mental Stress):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.stress}</p>
+                                </div>
+                              )}
+                              {encounter.ayurvedicAssessment.bmi && (
+                                <div>
+                                  <span className="text-gray-500">Samhanana (Body Build):</span>
+                                  <p className="mt-1 text-gray-700">{encounter.ayurvedicAssessment.bmi}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* AI Summary */}
+                        {encounter.generatedSummary && (
+                          <div className="bg-purple-50 rounded-lg p-4">
+                            <h4 className="font-medium text-purple-900 mb-2 flex items-center">
+                              <FileText className="w-4 h-4 mr-2" />
+                              AI Generated Summary
+                              {encounter.summaryApproved && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Approved</span>
+                              )}
+                            </h4>
+                            <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono bg-white p-3 rounded border">
+                              {encounter.generatedSummary}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* Action Links */}
+                        <div className="flex gap-2">
+                          <Link 
+                            to={`/review/${encounter.id}`}
+                            className="text-sm text-primary-600 hover:text-primary-700 flex items-center"
+                          >
+                            View Full Details →
+                          </Link>
+                          {encounter.status === 'IN_PROGRESS' && (
+                            <Link 
+                              to={`/vitals/${encounter.id}`}
+                              className="text-sm text-blue-600 hover:text-blue-700 flex items-center ml-4"
+                            >
+                              Record Vitals →
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

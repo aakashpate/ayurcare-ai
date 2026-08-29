@@ -744,36 +744,6 @@ export default function PatientIntake() {
     const handleGenerate = async () => {
       updateState({ generating: true });
       try {
-        if (isMockMode) {
-          const mockSummary = `AI-GENERATED CLINICAL SUMMARY (DEMO)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Patient: ${state.fullName}
-Age: ${state.age}
-Gender: ${state.gender}
-Language: ${state.language === 'hi' ? 'Hindi' : 'English'}
-Chief Complaint: ${state.chiefComplaint}
-
-INTERVIEW RESPONSES:
-${state.responses.map(r => `• ${r.text}: ${r.value}`).join('\n')}
-
-BIOMEDICAL HISTORY:
-${Object.entries(state.biomedicalData).filter(([_, v]) => v).map(([k, v]) => `• ${k}: ${v}`).join('\n') || 'Not provided'}
-
-AYURVEDIC ASSESSMENT:
-${Object.entries(state.ayurvedicData).filter(([_, v]) => v).map(([k, v]) => `• ${k}: ${v}`).join('\n') || 'Not provided'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-AI GENERATED — PHYSICIAN REVIEW REQUIRED
-DEMO DATA — Not for clinical use`;
-
-          updateState({ 
-            summary: mockSummary,
-            generating: false 
-          });
-          toast.success(isHi ? 'सारांश तैयार! (DEMO)' : 'Summary generated! (DEMO)');
-          return;
-        }
-
         const patientRes = await api.post('/patients', {
           fullName: state.fullName,
           age: state.age,
@@ -803,15 +773,20 @@ DEMO DATA — Not for clinical use`;
 
         await api.put(`/encounters/${encounterId}/biomedical`, {
           pastMedicalHistory: state.biomedicalData.pastMedical || '',
+          pastSurgicalHistory: state.biomedicalData.pastSurgical || '',
           medications: state.biomedicalData.drugHistory || '',
           allergies: state.biomedicalData.allergies || '',
           familyHistory: state.biomedicalData.familyHistory || '',
+          personalHistory: state.biomedicalData.personalHistory || '',
         });
 
         await api.put(`/encounters/${encounterId}/ayurvedic`, {
           agni: state.ayurvedicData.agni || '',
           ahara: state.ayurvedicData.ahara || '',
           nidra: state.ayurvedicData.nidra || '',
+          exercise: state.ayurvedicData.exercise || '',
+          stress: state.ayurvedicData.stress || '',
+          bmi: state.ayurvedicData.bmi || '',
         });
 
         const summaryRes = await api.post(`/encounters/${encounterId}/generate-summary`);

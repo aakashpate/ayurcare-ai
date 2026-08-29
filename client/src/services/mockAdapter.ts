@@ -306,13 +306,46 @@ const mockAdapter: AxiosAdapter = async (config: AxiosRequestConfig): Promise<Ax
     return makeResponse({ success: true, vitals: enc.vitals });
   }
 
+  // PUT /encounters/:id/biomedical
+  const bioMatch = url.match(/^\/encounters\/([^/]+)\/biomedical$/);
+  if (method === 'PUT' && bioMatch) {
+    const enc = DEMO_ENCOUNTERS[bioMatch[1]];
+    if (!enc) throw makeError(404, 'Encounter not found');
+    enc.biomedicalAssessment = { ...enc.biomedicalAssessment, ...data };
+    return makeResponse({ success: true, biomedical: enc.biomedicalAssessment });
+  }
+
+  // PUT /encounters/:id/ayurvedic
+  const ayuMatch = url.match(/^\/encounters\/([^/]+)\/ayurvedic$/);
+  if (method === 'PUT' && ayuMatch) {
+    const enc = DEMO_ENCOUNTERS[ayuMatch[1]];
+    if (!enc) throw makeError(404, 'Encounter not found');
+    enc.ayurvedicAssessment = { ...enc.ayurvedicAssessment, ...data };
+    return makeResponse({ success: true, ayurvedic: enc.ayurvedicAssessment });
+  }
+
+  // POST /encounters/:id/check-red-flags
+  const rfMatch = url.match(/^\/encounters\/([^/]+)\/check-red-flags$/);
+  if (method === 'POST' && rfMatch) {
+    const enc = DEMO_ENCOUNTERS[rfMatch[1]];
+    if (!enc) throw makeError(404, 'Encounter not found');
+    const flags = generateMockRedFlags({
+      severity: enc.severity,
+      chiefComplaint: enc.chiefComplaint,
+      vitals: enc.vitals,
+      biomedicalAssessment: enc.biomedicalAssessment
+    });
+    enc.redFlags = flags;
+    return makeResponse({ redFlags: flags });
+  }
+
   // GET /encounters/:id
   const encGet = url.match(/^\/encounters\/([^/]+)$/);
   if (method === 'GET' && encGet) {
     const enc = DEMO_ENCOUNTERS[encGet[1]];
     if (!enc) throw makeError(404, 'Encounter not found');
     const pat = DEMO_PATIENTS.find(p => p.id === enc.patientId);
-    return makeResponse({ encounter: { ...enc, patient: pat ? { id: pat.id, fullName: pat.fullName, patientCode: pat.patientCode, age: pat.age, gender: pat.gender, phone: pat.phone } : null } });
+    return makeResponse({ encounter: { ...enc, patient: pat ? { id: pat.id, fullName: pat.fullName, patientCode: pat.patientCode, age: pat.age, gender: pat.gender, phone: pat.phone, email: pat.email } : null } });
   }
 
   // POST /encounters/:id/generate-summary

@@ -9,7 +9,9 @@ import {
   AlertTriangle, 
   Plus,
   ArrowRight,
-  Activity
+  Activity,
+  FileText,
+  Clock
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -26,9 +28,24 @@ interface RecentPatient {
   age: number;
   gender: string;
   encounters: Array<{
+    id: string;
     chiefComplaint: string;
     status: string;
     createdAt: string;
+    severity?: number;
+    interviewResponses?: Array<{
+      questionKey: string;
+      response: string;
+    }>;
+    biomedicalAssessment?: {
+      pastMedicalHistory?: string;
+      allergies?: string;
+    };
+    ayurvedicAssessment?: {
+      agni?: string;
+      ahara?: string;
+      nidra?: string;
+    };
   }>;
   followUps: Array<{
     scheduledAt: string;
@@ -178,6 +195,9 @@ export default function Dashboard() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('patients.status')}
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -200,7 +220,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                     {patient.patientCode}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -218,12 +238,93 @@ export default function Dashboard() {
                       {patient.encounters[0]?.status || 'New'}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <Link 
+                      to={`/patients/${patient.id}`}
+                      className="text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      View Details
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Patient History Quick Access */}
+      {recentPatients.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-serif font-semibold text-gray-900 mb-4">
+            Patient History Quick View
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentPatients.slice(0, 3).map((patient) => {
+              const encounter = patient.encounters[0];
+              return (
+                <div key={patient.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-primary-700 font-medium text-sm">
+                          {patient.fullName.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="ml-2">
+                        <p className="font-medium text-sm">{patient.fullName}</p>
+                        <p className="text-xs text-gray-500 font-mono">{patient.patientCode}</p>
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      encounter?.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      encounter?.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {encounter?.status || 'New'}
+                    </span>
+                  </div>
+                  
+                  {encounter && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center text-gray-600">
+                        <FileText className="w-4 h-4 mr-2" />
+                        <span className="truncate">{encounter.chiefComplaint || 'No complaint recorded'}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Clock className="w-4 h-4 mr-2" />
+                        <span>{new Date(encounter.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      {encounter.severity && (
+                        <div className="flex items-center">
+                          <span className="text-gray-600 mr-2">Severity:</span>
+                          <span className={`font-medium ${
+                            encounter.severity >= 8 ? 'text-red-600' :
+                            encounter.severity >= 5 ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`}>
+                            {encounter.severity}/10
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 pt-3 border-t">
+                    <Link 
+                      to={`/patients/${patient.id}`}
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center"
+                    >
+                      View Full History
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Disclaimer */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
