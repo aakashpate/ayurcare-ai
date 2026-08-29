@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { t } from '../i18n';
 import toast from 'react-hot-toast';
+import { Component as Background } from '@/components/ui/background-snippets';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -43,7 +44,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-cream-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+      <Background />
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center">

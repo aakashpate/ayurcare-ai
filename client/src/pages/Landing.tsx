@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { User, Stethoscope, Shield, Heart } from 'lucide-react';
+import { Component as Background } from '@/components/ui/background-snippets';
 
 export default function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-cream-50 to-primary-100 flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      <Background />
       {/* Header */}
       <div className="pt-12 pb-8 text-center px-4">
         <div className="flex justify-center mb-6">
