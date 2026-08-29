@@ -52,7 +52,7 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const navigation = [
-    { name: t('dashboard.title'), href: '/', icon: LayoutDashboard },
+    { name: t('dashboard.title'), href: '/dashboard', icon: LayoutDashboard },
     { name: t('intake.title'), href: '/new-case', icon: UserPlus },
     { name: t('patients.title'), href: '/patients', icon: Users },
     { name: t('followUps.title'), href: '/follow-ups', icon: Calendar },
